@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BusinessType {
+  RESTAURANT
+  HOMECOOK
+  BAKERY
+}
+
+enum PartnerStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model RestaurantPartner {
+  id                       String        @id @default(cuid())
+  businessName             String
+  businessType             BusinessType  @default(RESTAURANT)
+  ownerFirstName           String
+  ownerLastName            String
+  email                    String        @unique
+  phone                    String
+  passwordHash             String
+  tradeLicenseNumber       String
+  tradeLicenseDocumentName String?
+  status                   PartnerStatus @default(PENDING)
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+
+  @@map("restaurant_partners")
+}
