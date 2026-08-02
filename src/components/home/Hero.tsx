@@ -106,30 +106,39 @@ export default function Hero({ searchQuery = "", setSearchQuery }: HeroProps) {
 						Discover nearby restaurants, quick bites, and comfort food that arrives hot and on time. Search, choose, and enjoy without the wait.
 					</p>
 
+					<div className="mt-8 flex w-full justify-center lg:justify-start">
+						<Link
+							href="/res-partner"
+							className="inline-flex items-center justify-center rounded-full bg-orange-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-200 transition hover:bg-orange-700"
+						>
+							Sign Up as Restaurant Partner
+						</Link>
+					</div>
+
 					<div className="mt-8 w-full max-w-xl">
 						<div className="relative">
 							<div className="flex flex-col gap-3 rounded-3xl border border-black/10 bg-white p-3 shadow-lg shadow-black/5 sm:flex-row sm:items-center">
-							<label className="sr-only" htmlFor="food-search">
-								Search for food
-							</label>
-							<input
-								id="food-search"
-								type="search"
-								placeholder="Search dishes, restaurants, or cuisines"
-								value={query}
-								onChange={(event) => handleQueryChange(event.target.value)}
-								className="h-14 flex-1 rounded-2xl border border-transparent bg-zinc-50 px-5 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-orange-200 focus:bg-white focus:ring-2 focus:ring-orange-100"
-							/>
-							<button
-								type="button"
-								className="inline-flex h-14 items-center justify-center rounded-2xl bg-orange-600 px-6 text-sm font-semibold text-white shadow-md shadow-orange-200 transition hover:bg-orange-700"
-							>
-								Explore Food
-							</button>
+								<label className="sr-only" htmlFor="food-search">
+									Search for food
+								</label>
+								<input
+									id="food-search"
+									type="search"
+									placeholder="Search dishes, restaurants, or cuisines"
+									value={query}
+									onChange={(event) => handleQueryChange(event.target.value)}
+									className="h-14 flex-1 rounded-2xl border border-transparent bg-zinc-50 px-5 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-orange-200 focus:bg-white focus:ring-2 focus:ring-orange-100"
+								/>
+								<button
+									type="button"
+									className="inline-flex h-14 items-center justify-center rounded-2xl bg-orange-600 px-6 text-sm font-semibold text-white shadow-md shadow-orange-200 transition hover:bg-orange-700"
+								>
+									Explore Food
+								</button>
 							</div>
 
 							{query.length > 0 ? (
-								<div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 max-h-60 overflow-y-auto z-50">
+								<div className="absolute top-full left-0 right-0 mt-2 max-h-60 overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow-xl z-50">
 									{filteredRestaurants.length > 0 ? (
 										filteredRestaurants.map((restaurant) => (
 											<Link
