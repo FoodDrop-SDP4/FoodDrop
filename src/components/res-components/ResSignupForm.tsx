@@ -23,7 +23,7 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-const phoneRegex = /^(\+8801|01)[3-9]\d{8}$/;
+const phoneRegex = /^(01[3-9]\d{8})$/; // exactly 11 digits, starts with 013-019
 const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
 const signupSchema = z.object({
@@ -33,10 +33,12 @@ const signupSchema = z.object({
   businessType: z.enum(["Restaurant", "HomeCook", "Bakery"]),
   ownerFirstName: z
     .string()
-    .min(2, "First name is required / নামের প্রথম অংশ দিন"),
+    .min(2, "First name is required / নামের প্রথম অংশ দিন")
+    .regex(/^([^\d]*)$/, "Name must not contain digits / নামের মধ্যে সংখ্যা থাকতে পারবে না"),
   ownerLastName: z
     .string()
-    .min(2, "Last name is required / নামের শেষ অংশ দিন"),
+    .min(2, "Last name is required / নামের শেষ অংশ দিন")
+    .regex(/^([^\d]*)$/, "Name must not contain digits / নামের মধ্যে সংখ্যা থাকতে পারবে না"),
   email: z.string().email("Invalid email address / সঠিক ইমেইল দিন"),
   phone: z
     .string()

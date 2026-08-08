@@ -20,6 +20,29 @@ export default function RestaurantRegisterPage() {
     e.preventDefault();
     setIsLoading(true);
 
+    // Client-side validation
+    const phoneRegex = /^(01[3-9]\d{8})$/;
+    const emailRegex = /^\S+@\S+\.\S+$/;
+    const nameNoDigitRegex = /^([^\d]*)$/;
+
+    if (!nameNoDigitRegex.test(ownerName)) {
+      alert("Owner name must not contain digits.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!emailRegex.test(String(email).trim().toLowerCase())) {
+      alert("Please enter a valid email address.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (phone && !phoneRegex.test(phone.trim())) {
+      alert("Mobile number must be a valid Bangladeshi number (013-019) with 11 digits.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/restaurants/register", {
         method: "POST",

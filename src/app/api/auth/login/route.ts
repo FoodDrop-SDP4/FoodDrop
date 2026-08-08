@@ -7,8 +7,14 @@ export async function POST(request: Request) {
   try {
     const { email, password } = await request.json();
 
+    const emailRegex = /^\S+@\S+\.\S+$/;
+
     if (!email || !password) {
       return NextResponse.json({ message: "Email and password are required!" }, { status: 400 });
+    }
+
+    if (!emailRegex.test(String(email).trim().toLowerCase())) {
+      return NextResponse.json({ message: "Invalid email address." }, { status: 400 });
     }
 
     // ডাটাবেজে ইউজার খোঁজা

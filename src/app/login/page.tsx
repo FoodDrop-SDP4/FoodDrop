@@ -1,14 +1,24 @@
 "use client";
 
-import { useState, FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+export const dynamic = "force-dynamic";
+
+import { useState, FormEvent, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lock, Mail, Loader2, Utensils, ArrowRight, Store, Bike, User } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get("redirect") || "/";
+  const [redirectUrl, setRedirectUrl] = useState("/");
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      setRedirectUrl(params.get("redirect") || "/");
+    } catch (e) {
+      setRedirectUrl("/");
+    }
+  }, []);
 
   const [isLoading, setIsLoading] = useState(false);
   
@@ -125,6 +135,41 @@ export default function LoginPage() {
           </button>
         </div>
 
+        {/* Role-specific promo + dynamic register link */}
+        <div className="mb-6 text-center">
+          <p className="text-sm text-slate-500 mb-3">
+            {selectedRole === "CUSTOMER" && (
+              <>
+                <strong>Welcome to FoodDrop</strong> — Order quickly — delicious food delivered to your door.
+                <br />
+                <em>Simple, reliable ordering. Create an account and start ordering from nearby restaurants.</em>
+              </>
+            )}
+            {selectedRole === "RESTAURANT_OWNER" && (
+              <>Partner with us — reach more customers and manage your restaurant easily.</>
+            )}
+            {selectedRole === "RIDER" && (
+              <>Deliver food, earn daily money & set your own hours — join as a Rider.</>
+            )}
+          </p>
+
+          <div>
+            {selectedRole === "CUSTOMER" ? (
+              <Link href="/register" className="font-bold text-orange-600 hover:underline">
+                New? Register as Customer
+              </Link>
+            ) : selectedRole === "RESTAURANT_OWNER" ? (
+              <Link href="/restaurant/register" className="font-bold text-orange-600 hover:underline">
+                New? Register a Restaurant
+              </Link>
+            ) : (
+              <Link href="/rider/register" className="font-bold text-orange-600 hover:underline">
+                New? Register as Rider
+              </Link>
+            )}
+          </div>
+        </div>
+
         {/* Form */}
         <form onSubmit={handleLogin} className="space-y-4">
           
@@ -174,10 +219,28 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-8 text-center text-xs text-slate-500 border-t border-slate-100 pt-6">
-          Want to register a new restaurant?{" "}
-          <Link href="/restaurant/register" className="font-bold text-orange-600 hover:underline">
-            Partner with us
-          </Link>
+          {selectedRole === "CUSTOMER" ? (
+            <div>
+              New here?{" "}
+              <Link href="/register" className="font-bold text-orange-600 hover:underline">
+                Register as Customer
+              </Link>
+            </div>
+          ) : selectedRole === "RESTAURANT_OWNER" ? (
+            <div>
+              Want to register a restaurant?{" "}
+              <Link href="/restaurant/register" className="font-bold text-orange-600 hover:underline">
+                Partner with us
+              </Link>
+            </div>
+          ) : (
+            <div>
+              New rider?{" "}
+              <Link href="/rider/register" className="font-bold text-orange-600 hover:underline">
+                Register as Rider
+              </Link>
+            </div>
+          )}
         </div>
 
       </div>

@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import bcrypt from 'bcryptjs';
 
+const bangladeshPhoneRegex = /^(01[3-9]\d{8})$/;
+const emailRegex = /^\S+@\S+\.\S+$/;
+const nameNoDigitRegex = /^([^\d]*)$/;
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -9,6 +13,18 @@ export async function POST(request: Request) {
 
     if (!email || !password || !name || !ownerName) {
       return NextResponse.json({ message: 'Essential fields are missing!' }, { status: 400 });
+    }
+
+    if (!emailRegex.test(String(email).trim().toLowerCase())) {
+      return NextResponse.json({ message: 'Invalid email address!' }, { status: 400 });
+    }
+
+    if (!nameNoDigitRegex.test(String(ownerName))) {
+      return NextResponse.json({ message: 'Owner name must not contain digits!' }, { status: 400 });
+    }
+
+    if (phone && !bangladeshPhoneRegex.test(String(phone).trim())) {
+      return NextResponse.json({ message: 'Mobile number must be a valid Bangladeshi number (013-019) with 11 digits.' }, { status: 400 });
     }
 
     // চেক করা ইমেইল অলরেডি আছে কি না

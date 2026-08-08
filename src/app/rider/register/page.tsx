@@ -24,6 +24,29 @@ export default function RiderRegisterPage() {
     setIsLoading(true);
     setError("");
 
+    // Client-side validation
+    const phoneRegex = /^(01[3-9]\d{8})$/;
+    const emailRegex = /^\S+@\S+\.\S+$/;
+    const nameNoDigitRegex = /^([^\d]*)$/;
+
+    if (!nameNoDigitRegex.test(formData.name)) {
+      setError("Name must not contain digits.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!emailRegex.test(String(formData.email).trim().toLowerCase())) {
+      setError("Please enter a valid email address.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!phoneRegex.test(String(formData.phone).trim())) {
+      setError("Mobile number must be a valid Bangladeshi number (013-019) with 11 digits.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/rider/register", {
         method: "POST",
@@ -146,7 +169,7 @@ export default function RiderRegisterPage() {
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1.5">Vehicle Type</label>
               <div className="grid grid-cols-3 gap-2">
-                {["Motorcycle", "Bicycle", "Walking"].map((type) => (
+                { ["Motorcycle", "Bicycle", "Walking"].map((type) => (
                   <button
                     type="button"
                     key={type}

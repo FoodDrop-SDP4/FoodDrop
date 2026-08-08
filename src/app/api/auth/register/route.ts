@@ -4,7 +4,9 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../../../lib/prisma";
 
-const bangladeshPhoneRegex = /^(?:01[3-9]\d{8})$/;
+const bangladeshPhoneRegex = /^(01[3-9]\d{8})$/; // exactly 11 digits, starts with 013-019
+const emailRegex = /^\S+@\S+\.\S+$/;
+const nameNoDigitRegex = /^([^\d]*)$/;
 const allowedVehicleTypes = ["Bicycle", "Motorcycle"] as const;
 const OTP_TTL_MINUTES = 5;
 
@@ -60,6 +62,14 @@ export async function POST(request: Request) {
         { message: "Mobile number must be a valid Bangladeshi number starting with 013-019 and containing 11 digits." },
         { status: 400 },
       );
+    }
+
+    if (!emailRegex.test(normalizedEmail)) {
+      return NextResponse.json({ message: "Invalid email address." }, { status: 400 });
+    }
+
+    if (!nameNoDigitRegex.test(name.trim())) {
+      return NextResponse.json({ message: "Name must not contain digits." }, { status: 400 });
     }
 
     const existingUser = await prisma.user.findUnique({
