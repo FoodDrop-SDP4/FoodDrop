@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Bike, User, Mail, Lock, Phone, MapPin, ShieldCheck, Loader2, ArrowLeft } from "lucide-react";
+import { Bike, User, Mail, Lock, Phone, MapPin, Loader2, ArrowLeft } from "lucide-react";
 
 export default function RiderRegisterPage() {
   const router = useRouter();
@@ -23,6 +23,41 @@ export default function RiderRegisterPage() {
     e.preventDefault();
     setIsLoading(true);
     setError("");
+
+    // 🚀 Regex Validations
+    const nameRegex = /^[a-zA-Z\s.-]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const bdPhoneRegex = /^(?:01[3-9]\d{8})$/;
+
+    if (!nameRegex.test(formData.name.trim())) {
+      setError("Full Name can only contain letters and spaces. Numbers are not allowed.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!emailRegex.test(formData.email.trim())) {
+      setError("Please enter a valid email address.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!bdPhoneRegex.test(formData.phone.trim())) {
+      setError("Please enter a valid 11-digit Bangladeshi phone number (e.g. 017XXXXXXXX).");
+      setIsLoading(false);
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (formData.vehicleType === "Motorcycle" && !formData.vehicleNumber.trim()) {
+      setError("Please enter your vehicle registration number.");
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch("/api/rider/register", {

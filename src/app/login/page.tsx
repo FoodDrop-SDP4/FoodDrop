@@ -47,7 +47,7 @@ export default function LoginPage() {
 
         alert(`🎉 Signed in successfully as ${selectedRole.replace("_", " ")}!`);
 
-        // 🚀 ৩. সিলেক্টেড রোল ও রিডাইরেক্ট ইউআরএল অনুযায়ী সঠিক পেজে পাঠানো
+        // 🚀 ৩. সিলেক্টেড রোল ও রিডাইরেক্ট ইউআরএল অনুযায়ী সঠিক পেজে পাঠানো
         if (selectedRole === "RESTAURANT_OWNER") {
           router.push("/restaurant");
         } else if (selectedRole === "RIDER") {
@@ -173,11 +173,34 @@ export default function LoginPage() {
           </button>
         </form>
 
+        {/* 🚀 Dynamic Link Based on Selected Role */}
         <div className="mt-8 text-center text-xs text-slate-500 border-t border-slate-100 pt-6">
-          Want to register a new restaurant?{" "}
-          <Link href="/restaurant/register" className="font-bold text-orange-600 hover:underline">
-            Partner with us
-          </Link>
+          {selectedRole === "CUSTOMER" && (
+            <p>
+              Don't have an account?{" "}
+              <Link href="/register" className="font-bold text-orange-600 hover:underline">
+                Sign Up
+              </Link>
+            </p>
+          )}
+
+          {selectedRole === "RESTAURANT_OWNER" && (
+            <p>
+              Want to register a new restaurant?{" "}
+              <Link href="/restaurant/register" className="font-bold text-orange-600 hover:underline">
+                Partner with us
+              </Link>
+            </p>
+          )}
+
+          {selectedRole === "RIDER" && (
+            <p>
+              Want to deliver with us?{" "}
+              <Link href="/rider/register" className="font-bold text-orange-600 hover:underline">
+                Apply as Rider
+              </Link>
+            </p>
+          )}
         </div>
 
       </div>
