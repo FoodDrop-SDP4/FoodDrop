@@ -1,58 +1,71 @@
+// File: src/store/useCartStore.ts
 import { create } from "zustand";
 
-export interface CartItem {
-	id: string | number;
-	name: string;
-	price: number;
-	quantity: number;
-	image: string;
-}
+export type CartItem = {
+  id: string;
+  name: string;
+  price: number;
+  imageUrl: string;
+  quantity: number;
+  restaurantId: string;
+  restaurantName: string;
+};
 
-export interface CartState {
-	items: CartItem[];
-	addItem: (item: Omit<CartItem, "quantity">) => void;
-	removeItem: (id: CartItem["id"]) => void;
-	updateQuantity: (id: CartItem["id"], quantity: number) => void;
-	clearCart: () => void;
-	getTotalItems: () => number;
-	getTotalPrice: () => number;
-}
+type CartStore = {
+  cart: CartItem[];
+  isOpen: boolean;
+  openCart: () => void;
+  closeCart: () => void;
+  addToCart: (item: CartItem) => void;
+  removeFromCart: (id: string) => void;
+  updateQuantity: (id: string, delta: number) => void;
+  clearCart: () => void;
+};
 
-export const useCartStore = create<CartState>((set, get) => ({
-	items: [],
-	addItem: (item) =>
-		set((state) => {
-			const existingItem = state.items.find((cartItem) => cartItem.id === item.id);
+export const useCartStore = create<CartStore>((set) => ({
+  cart: [],
+  isOpen: false,
+  openCart: () => set({ isOpen: true }),
+  closeCart: () => set({ isOpen: false }),
 
-			if (existingItem) {
-				return {
-					items: state.items.map((cartItem) =>
-						cartItem.id === item.id
-							? { ...cartItem, quantity: cartItem.quantity + 1 }
-							: cartItem,
-					),
-				};
-			}
+  addToCart: (newItem) =>
+    set((state) => {
+      const isDifferentRestaurant =
+        state.cart.length > 0 && state.cart[0].restaurantId !== newItem.restaurantId;
 
-			return {
-				items: [...state.items, { ...item, quantity: 1 }],
-			};
-		}),
-	removeItem: (id) =>
-		set((state) => ({
-			items: state.items.filter((item) => item.id !== id),
-		})),
-	updateQuantity: (id, quantity) =>
-		set((state) => ({
-			items:
-				quantity <= 0
-					? state.items.filter((item) => item.id !== id)
-					: state.items.map((item) =>
-						item.id === id ? { ...item, quantity } : item,
-					),
-		})),
-	clearCart: () => set({ items: [] }),
-	getTotalItems: () => get().items.reduce((total, item) => total + item.quantity, 0),
-	getTotalPrice: () =>
-		get().items.reduce((total, item) => total + item.price * item.quantity, 0),
+      const currentCart = isDifferentRestaurant ? [] : state.cart;
+      const existingItem = currentCart.find((item) => item.id === newItem.id);
+
+      if (existingItem) {
+        return {
+          cart: currentCart.map((item) =>
+            item.id === newItem.id ? { ...item, quantity: item.quantity + 1 } : item
+          ),
+        };
+      }
+
+      return {
+        cart: [...currentCart, { ...newItem, quantity: 1 }],
+      };
+    }),
+
+  removeFromCart: (id) =>
+    set((state) => ({
+      cart: state.cart.filter((item) => item.id !== id),
+    })),
+
+  updateQuantity: (id, delta) =>
+    set((state) => ({
+      cart: state.cart
+        .map((item) => {
+          if (item.id === id) {
+            const newQty = item.quantity + delta;
+            return newQty > 0 ? { ...item, quantity: newQty } : null;
+          }
+          return item;
+        })
+        .filter(Boolean) as CartItem[],
+    })),
+
+  clearCart: () => set({ cart: [] }),
 }));

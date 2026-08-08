@@ -4,34 +4,159 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-enum BusinessType {
-  RESTAURANT
-  HOMECOOK
-  BAKERY
+// ইউজার রোল ডিফাইন করা
+enum Role {
+  CUSTOMER
+  RESTAURANT_OWNER
+  RIDER
 }
 
-enum PartnerStatus {
+// অর্ডার স্ট্যাটাস
+enum OrderStatus {
   PENDING
-  APPROVED
-  REJECTED
+  PREPARING
+  READY_FOR_PICKUP
+  ON_THE_WAY
+  DELIVERED
+  CANCELLED
 }
 
-model RestaurantPartner {
-  id                       String        @id @default(cuid())
-  businessName             String
-  businessType             BusinessType  @default(RESTAURANT)
-  ownerFirstName           String
-  ownerLastName            String
-  email                    String        @unique
-  phone                    String
-  passwordHash             String
-  tradeLicenseNumber       String
-  tradeLicenseDocumentName String?
-  status                   PartnerStatus @default(PENDING)
-  createdAt                DateTime      @default(now())
-  updatedAt                DateTime      @updatedAt
+// 1. User Model (Customer, Owner, Rider সবার জন্য)
+model User {
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  password    String
+  phone       String?
+  role        Role     @default(CUSTOMER)
+  vehicleType  String?  // "Bicycle" | "Motorcycle" | "Walking"
+  vehicleNumber String? // Optional (for Motorcycle)
+  profilePic   String?  // Rider Profile Picture URL
+  isOnline     Boolean  @default(false) // Online/Offline Toggle
+  rating       Float    @default(5.0)   // Average Rating
+  totalReviews Int      @default(0)     // Review Co
+  nid         String?  // রাইডার ভেরিফিকেশনের জন্য
+  addresses   Address[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  @@map("restaurant_partners")
+  // Relationships\
+  restaurants Restaurant[]
+  orders      Order[]      @relation("CustomerOrders")
+  deliveries  Order[]      @relation("RiderDeliveries")
+  reviews Review[]
+}
+
+// 1.5 Pending Registration (OTP verification before creating a real user)
+model PendingRegistration {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  password     String
+  phone        String
+  role         Role
+  vehicleType  String?
+  nid          String?
+  otpCode      String
+  otpExpiresAt DateTime
+  createdAt    DateTime @default(now())
+}
+
+// 2. Restaurant Model
+model Restaurant {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  isOnline  Boolean  @default(true)
+  ownerId   String
+  createdAt DateTime @default(now())
+
+  // Relationships
+  owner     User       @relation(fields: [ownerId], references: [id])
+  menuItems MenuItem[]
+  orders    Order[]
+  reviews Review[]
+}
+
+// 3. Menu Item Model (খাবারের আইটেম)
+model MenuItem {
+  id           String      @id @default(uuid())
+  name         String
+  description  String?
+  price        Float
+  imageUrl     String?
+  category     String?     @default("Fast Food & Burger")
+  isAvailable  Boolean     @default(true)
+  restaurantId String
+  
+  // Relationships
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
+  orderItems   OrderItem[]
+  reviews Review[]
+}
+
+// 4. Order Model (মূল অর্ডার ট্র্যাকিং)
+model Order {
+  id              String      @id @default(uuid())
+  totalAmount     Float
+  deliveryFee     Float       @default(60)
+  status          OrderStatus @default(PENDING)
+  deliveryAddress String
+  
+  customerId   String
+  restaurantId String
+  riderId      String?     // অর্ডার এক্সেপ্ট করার আগে ফাঁকা থাকবে
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relationships
+  customer     User        @relation("CustomerOrders", fields: [customerId], references: [id])
+  rider        User?       @relation("RiderDeliveries", fields: [riderId], references: [id])
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
+  orderItems   OrderItem[]
+}
+
+// 5. Order Item (একটা অর্ডারে কী কী খাবার আছে)
+model OrderItem {
+  id         String   @id @default(uuid())
+  quantity   Int
+  orderId    String
+  menuItemId String
+
+  // Relationships
+  order      Order    @relation(fields: [orderId], references: [id])
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+}
+
+// 6. Address Model
+model Address {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String   // e.g. "Home", "Office"
+  address   String   // e.g. "House 12, Road 4, Block C, Mirpur 10, Dhaka"
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// Review Model
+model Review {
+  id           String     @id @default(uuid())
+  rating       Int        // 1 to 5
+  comment      String?
+  createdAt    DateTime   @default(now())
+
+  // Relations
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  menuItemId   String?
+  menuItem     MenuItem?  @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
 }

@@ -106,15 +106,6 @@ export default function Hero({ searchQuery = "", setSearchQuery }: HeroProps) {
 						Discover nearby restaurants, quick bites, and comfort food that arrives hot and on time. Search, choose, and enjoy without the wait.
 					</p>
 
-					<div className="mt-8 flex w-full justify-center lg:justify-start">
-						<Link
-							href="/res-partner"
-							className="inline-flex items-center justify-center rounded-full bg-orange-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-200 transition hover:bg-orange-700"
-						>
-							Sign Up as Restaurant Partner
-						</Link>
-					</div>
-
 					<div className="mt-8 w-full max-w-xl">
 						<div className="relative">
 							<div className="flex flex-col gap-3 rounded-3xl border border-black/10 bg-white p-3 shadow-lg shadow-black/5 sm:flex-row sm:items-center">
