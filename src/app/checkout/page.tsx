@@ -1,216 +1,245 @@
+// File: src/app/checkout/page.tsx
 "use client";
 
-import Image from "next/image";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useCartStore } from "../../store/useCartStore";
-
-type PaymentMethod = "cod" | "mobile";
-
-const areaOptions = ["Dhanmondi", "Gulshan", "Mirpur", "Uttara", "Banani"];
-
-const formatTaka = (value: number) =>
-	new Intl.NumberFormat("bn-BD", {
-		style: "currency",
-		currency: "BDT",
-		currencyDisplay: "narrowSymbol",
-		maximumFractionDigits: 0,
-	}).format(value);
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { ShoppingBag, MapPin, Phone, CreditCard, Loader2, CheckCircle2, ArrowLeft, Home, Briefcase } from "lucide-react";
+import Link from "next/link";
 
 export default function CheckoutPage() {
-	const router = useRouter();
-	const items = useCartStore((state) => state.items);
-	const clearCart = useCartStore((state) => state.clearCart);
-	const totalPrice = useCartStore((state) => state.getTotalPrice());
-	const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
+  const { cart, clearCart } = useCartStore();
+  const router = useRouter();
 
-	const deliveryFee = 60;
-	const grandTotal = totalPrice + deliveryFee;
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [phone, setPhone] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("CASH_ON_DELIVERY");
+  const [isLoading, setIsLoading] = useState(false);
+  const [orderPlaced, setOrderPlaced] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
 
-	const orderItems = useMemo(
-		() =>
-			items.map((item) => ({
-				...item,
-				subtotal: item.price * item.quantity,
-			})),
-		[items],
-	);
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) {
+      router.push("/login?redirect=/checkout");
+    } else {
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
 
-	const handlePlaceOrder = () => {
-		clearCart();
-		router.push("/order-success");
-	};
+      // 🚀 সঠিক API রাউট থেকে সেভ করা এড্রেস নিয়ে আসা
+      fetch(`/api/users/addresses?userId=${parsedUser.id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) setSavedAddresses(data);
+        })
+        .catch((err) => console.error("Error fetching saved addresses:", err));
+    }
+  }, [router]);
 
-	return (
-		<main className="bg-zinc-50 py-8 text-zinc-900 sm:py-10">
-			<div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 py-8 lg:grid-cols-3 lg:px-8">
-				<section className="space-y-6 lg:col-span-2">
-					<div className="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
-						<p className="text-sm font-semibold uppercase tracking-[0.2em] text-orange-600">
-							Checkout
-						</p>
-						<h1 className="mt-2 text-3xl font-black tracking-tight text-zinc-950 sm:text-4xl">
-							Complete your order
-						</h1>
-						<p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
-							Add your delivery details and choose a payment method to finish your FoodDrop order.
-						</p>
-					</div>
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const deliveryFee = cart.length > 0 ? 60 : 0;
+  const total = subtotal + deliveryFee;
 
-					<div className="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
-						<h2 className="text-xl font-bold tracking-tight text-zinc-950">
-							Delivery Details
-						</h2>
+  const handlePlaceOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (cart.length === 0) return alert("Your cart is empty!");
+    if (!user) return alert("Please login to place an order.");
 
-						<div className="mt-6 grid gap-4 sm:grid-cols-2">
-							<label className="space-y-2 sm:col-span-1">
-								<span className="text-sm font-medium text-zinc-700">Full Name</span>
-								<input
-									type="text"
-									placeholder="Your full name"
-									className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm outline-none transition placeholder:text-zinc-400 focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100"
-								/>
-							</label>
+    setIsLoading(true);
 
-							<label className="space-y-2 sm:col-span-1">
-								<span className="text-sm font-medium text-zinc-700">Phone Number</span>
-								<input
-									type="tel"
-									placeholder="01XXXXXXXXX"
-									className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm outline-none transition placeholder:text-zinc-400 focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100"
-								/>
-							</label>
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: user.id,
+          restaurantId: cart[0].restaurantId,
+          deliveryAddress,
+          totalAmount: total,
+          items: cart.map((item) => ({
+            menuItemId: item.id,
+            quantity: item.quantity,
+          })),
+        }),
+      });
 
-							<label className="space-y-2 sm:col-span-2">
-								<span className="text-sm font-medium text-zinc-700">Delivery Address</span>
-								<input
-									type="text"
-									placeholder="House, road, apartment, landmark"
-									className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm outline-none transition placeholder:text-zinc-400 focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100"
-								/>
-							</label>
+      if (res.ok) {
+        clearCart();
+        setOrderPlaced(true);
+      } else {
+        const data = await res.json();
+        alert(data.message || "Failed to place order.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong!");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-							<label className="space-y-2 sm:col-span-2">
-								<span className="text-sm font-medium text-zinc-700">Area</span>
-								<select className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm outline-none transition focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100">
-									{areaOptions.map((area) => (
-										<option key={area}>{area}</option>
-									))}
-								</select>
-							</label>
-						</div>
-					</div>
+  if (orderPlaced) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center font-sans">
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-slate-100 shadow-xl space-y-4">
+          <CheckCircle2 className="h-16 w-16 text-emerald-500 mx-auto animate-bounce" />
+          <h1 className="text-2xl font-black text-slate-900">Order Placed Successfully!</h1>
+          <p className="text-sm text-slate-500">
+            Your order has been sent to the restaurant.
+          </p>
+          <Link
+            href="/"
+            className="block w-full rounded-2xl bg-slate-900 py-3.5 text-sm font-bold text-white transition hover:bg-orange-600"
+          >
+            Back to Home
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
-					<div className="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
-						<h2 className="text-xl font-bold tracking-tight text-zinc-950">
-							Payment Method
-						</h2>
+  return (
+    <main className="min-h-screen bg-slate-50 font-sans pt-24 pb-16">
+      <div className="mx-auto max-w-4xl px-6">
+        <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-orange-600 mb-6">
+          <ArrowLeft className="h-4 w-4" /> Back to Foods
+        </Link>
 
-						<div className="mt-6 grid gap-4 sm:grid-cols-2">
-							<button
-								type="button"
-								onClick={() => setPaymentMethod("cod")}
-								className={`rounded-3xl border p-5 text-left transition ${
-									paymentMethod === "cod"
-										? "border-orange-400 bg-orange-50 shadow-sm shadow-orange-100"
-										: "border-zinc-200 bg-white hover:border-orange-200 hover:bg-orange-50/40"
-								}`}
-							>
-								<p className="text-sm font-semibold uppercase tracking-[0.2em] text-orange-600">
-									Option 1
-								</p>
-								<h3 className="mt-2 text-lg font-bold text-zinc-950">Cash on Delivery</h3>
-								<p className="mt-1 text-sm leading-6 text-zinc-600">
-									Pay with cash when your order arrives at your doorstep.
-								</p>
-							</button>
+        <h1 className="text-3xl font-black text-slate-900 mb-8">Checkout</h1>
 
-							<button
-								type="button"
-								onClick={() => setPaymentMethod("mobile")}
-								className={`rounded-3xl border p-5 text-left transition ${
-									paymentMethod === "mobile"
-										? "border-orange-400 bg-orange-50 shadow-sm shadow-orange-100"
-										: "border-zinc-200 bg-white hover:border-orange-200 hover:bg-orange-50/40"
-								}`}
-							>
-								<p className="text-sm font-semibold uppercase tracking-[0.2em] text-orange-600">
-									Option 2
-								</p>
-								<h3 className="mt-2 text-lg font-bold text-zinc-950">Mobile Banking</h3>
-								<p className="mt-1 text-sm leading-6 text-zinc-600">
-									Use bKash or Nagad for quick and secure payment.
-								</p>
-							</button>
-						</div>
-					</div>
-				</section>
+        {cart.length === 0 ? (
+          <div className="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-12 text-center text-slate-400">
+            <ShoppingBag className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+            <p className="font-bold text-slate-600">Your cart is empty!</p>
+          </div>
+        ) : (
+          <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+            {/* Form */}
+            <form onSubmit={handlePlaceOrder} className="space-y-6">
+              
+              {/* Delivery Information Card */}
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+                <h2 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-orange-600" /> Delivery Information
+                </h2>
 
-				<aside className="lg:col-span-1">
-					<div className="lg:sticky lg:top-24 rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
-						<h2 className="text-xl font-bold tracking-tight text-zinc-950">
-							Order Summary
-						</h2>
+                {/* 🚀 Saved Addresses Quick Selector Component */}
+                {savedAddresses.length > 0 && (
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 space-y-2">
+                    <p className="text-xs font-bold text-slate-500">Select from saved addresses:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {savedAddresses.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setDeliveryAddress(item.address)}
+                          className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition ${
+                            deliveryAddress === item.address
+                              ? "border-orange-600 bg-orange-600 text-white shadow-sm"
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                          }`}
+                        >
+                          {item.label === "Home" && <Home className="h-3.5 w-3.5" />}
+                          {item.label === "Office" && <Briefcase className="h-3.5 w-3.5" />}
+                          {item.label === "Other" && <MapPin className="h-3.5 w-3.5" />}
+                          <span>{item.label}:</span>
+                          <span className="font-normal truncate max-w-[150px]">{item.address}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-						<div className="mt-6 space-y-4">
-							{orderItems.length === 0 ? (
-								<div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-6 text-center text-sm text-zinc-600">
-									Your cart is empty.
-								</div>
-							) : (
-								orderItems.map((item) => (
-									<div
-										key={item.id}
-										className="flex items-center gap-4 rounded-2xl border border-zinc-100 bg-zinc-50 p-3"
-									>
-										<div className="relative h-14 w-14 flex-none overflow-hidden rounded-xl bg-white">
-											<Image
-												src={item.image}
-												alt={item.name}
-												fill
-												sizes="56px"
-												className="object-cover"
-											/>
-										</div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600">Full Delivery Address</label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="House no, Road no, Area (e.g., Mirpur 10, Dhaka)"
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-gray-50 p-3.5 text-sm outline-none transition focus:border-orange-500 focus:bg-white"
+                  />
+                </div>
 
-										<div className="min-w-0 flex-1">
-											<p className="truncate text-sm font-bold text-zinc-950">{item.name}</p>
-											<p className="mt-1 text-xs text-zinc-500">Qty {item.quantity}</p>
-										</div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600">Contact Phone Number</label>
+                  <input
+                    required
+                    type="tel"
+                    placeholder="017XXXXXXXX"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-gray-50 p-3.5 text-sm outline-none transition focus:border-orange-500 focus:bg-white"
+                  />
+                </div>
+              </div>
 
-										<div className="text-right text-sm font-semibold text-orange-600">
-											{formatTaka(item.subtotal)}
-										</div>
-									</div>
-								))
-							)}
-						</div>
+              {/* Payment Method Section */}
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+                <h2 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-orange-600" /> Payment Method
+                </h2>
 
-						<div className="mt-6 space-y-3 border-t border-zinc-200 pt-6 text-sm">
-							<div className="flex items-center justify-between text-zinc-600">
-								<span>Subtotal</span>
-								<span className="font-semibold text-zinc-950">{formatTaka(totalPrice)}</span>
-							</div>
-							<div className="flex items-center justify-between text-zinc-600">
-								<span>Delivery Fee</span>
-								<span className="font-semibold text-zinc-950">{formatTaka(deliveryFee)}</span>
-							</div>
-							<div className="flex items-center justify-between border-t border-zinc-200 pt-3 text-base">
-								<span className="font-bold text-zinc-950">Grand Total</span>
-								<span className="text-xl font-black text-orange-600">{formatTaka(grandTotal)}</span>
-							</div>
-						</div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("CASH_ON_DELIVERY")}
+                    className={`rounded-2xl border p-4 text-left font-bold text-sm transition ${
+                      paymentMethod === "CASH_ON_DELIVERY"
+                        ? "border-orange-600 bg-orange-50/50 text-orange-600"
+                        : "border-slate-200 text-slate-600"
+                    }`}
+                  >
+                    Cash on Delivery
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("BKASH")}
+                    className={`rounded-2xl border p-4 text-left font-bold text-sm transition ${
+                      paymentMethod === "BKASH"
+                        ? "border-orange-600 bg-orange-50/50 text-orange-600"
+                        : "border-slate-200 text-slate-600"
+                    }`}
+                  >
+                    bKash / Online Demo
+                  </button>
+                </div>
+              </div>
 
-						<button
-							type="button"
-							onClick={handlePlaceOrder}
-							className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-orange-600 px-5 py-4 text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:bg-orange-700"
-						>
-							Place Order
-						</button>
-					</div>
-				</aside>
-			</div>
-		</main>
-	);
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full rounded-2xl bg-orange-600 py-4 text-sm font-bold text-white shadow-lg transition hover:bg-orange-700 disabled:opacity-70"
+              >
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : `Confirm Order (৳${total})`}
+              </button>
+            </form>
+
+            {/* Summary */}
+            <div className="h-fit rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+              <h2 className="font-bold text-slate-900 text-lg border-b pb-3">Order Summary</h2>
+              <div className="space-y-3">
+                {cart.map((item) => (
+                  <div key={item.id} className="flex justify-between text-xs">
+                    <span className="font-medium text-slate-700">{item.name} × {item.quantity}</span>
+                    <span className="font-bold text-slate-900">৳{item.price * item.quantity}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="border-t pt-3 space-y-1.5 text-xs text-slate-500">
+                <div className="flex justify-between"><span>Subtotal</span><span>৳{subtotal}</span></div>
+                <div className="flex justify-between"><span>Delivery Fee</span><span>৳{deliveryFee}</span></div>
+                <div className="flex justify-between text-sm font-black text-slate-900 border-t pt-2">
+                  <span>Total</span>
+                  <span className="text-orange-600">৳{total}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  );
 }
