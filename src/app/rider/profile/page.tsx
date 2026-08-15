@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bike, User, Phone, MapPin, Star, DollarSign, Package, Calendar, HelpCircle, PhoneCall, ArrowLeft, Loader2, ShieldCheck } from "lucide-react";
+import { Bike, User as UserIcon, Phone, MapPin, Star, DollarSign, Package, Calendar, HelpCircle, PhoneCall, ArrowLeft, Loader2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { User, Order, RiderHistoryResponse } from "../../../types";
 
 export default function RiderProfilePage() {
   const router = useRouter();
-  const [rider, setRider] = useState<any>(null);
-  const [historyData, setHistoryData] = useState<any>(null);
+  const [rider, setRider] = useState<User | null>(null);
+  const [historyData, setHistoryData] = useState<RiderHistoryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<"ALL" | "TODAY" | "WEEK">("ALL");
 
@@ -42,7 +43,8 @@ export default function RiderProfilePage() {
     );
   }
 
-  const filteredOrders = historyData?.orders?.filter((order: any) => {
+  const filteredOrders = historyData?.orders?.filter((order: Order) => {
+    if (!order.updatedAt) return true;
     if (filter === "TODAY") {
       const today = new Date().toDateString();
       return new Date(order.updatedAt).toDateString() === today;

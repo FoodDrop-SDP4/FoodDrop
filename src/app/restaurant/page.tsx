@@ -3,48 +3,20 @@
 import { FormEvent, useEffect, useState } from "react";
 import { 
   Plus, Utensils, DollarSign, AlignLeft, Image as ImageIcon, 
-  Loader2, RefreshCcw, ShoppingBag, TrendingUp, Clock, ChefHat, User, Store, Tag, Trash2, XCircle, Edit, Settings, ToggleLeft, ToggleRight, X 
+  Loader2, RefreshCcw, ShoppingBag, TrendingUp, Clock, ChefHat, User as UserIcon, Store, Tag, Trash2, XCircle, Edit, Settings, ToggleLeft, ToggleRight, X 
 } from "lucide-react";
+import { MenuItem, Order, Restaurant, RestaurantStats } from "../../types";
 
-type MenuItem = {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  imageUrl: string;
-  category?: string;
-  isAvailable?: boolean;
-};
-
-type OrderItem = {
-  id: string;
-  quantity: number;
-  menuItem: { name: string; price: number; };
-};
-
-type Order = {
-  id: string;
-  totalAmount: number;
-  status: string;
-  deliveryAddress: string;
-  createdAt: string;
-  customer: { name: string; phone: string; };
-  orderItems: OrderItem[];
-};
-
-type RestaurantData = {
-  id: string;
-  name: string;
-  address: string;
-  menuItems: MenuItem[];
+type RestaurantData = Restaurant & {
   orders: Order[];
+  menuItems: MenuItem[];
 };
 
 export default function ProfessionalRestaurantDashboard() {
   const [ownerName, setOwnerName] = useState("");
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [restaurant, setRestaurant] = useState<RestaurantData | null>(null);
-  const [stats, setStats] = useState({ totalRevenue: 0, totalOrders: 0, pendingOrdersCount: 0 });
+  const [stats, setStats] = useState<RestaurantStats>({ totalRevenue: 0, totalOrders: 0, pendingOrdersCount: 0 });
   const [isFetching, setIsFetching] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
@@ -234,7 +206,7 @@ export default function ProfessionalRestaurantDashboard() {
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
-              <User className="h-4 w-4 text-orange-600" />
+              <UserIcon className="h-4 w-4 text-orange-600" />
               <span>{ownerName || "Owner"}</span>
             </div>
             <button onClick={() => fetchDashboardData()} className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow hover:bg-orange-600 transition">
@@ -395,7 +367,7 @@ export default function ProfessionalRestaurantDashboard() {
                   <option value="Beverages & Drinks">Beverages & Drinks</option>
                 </select>
               </div>
-              <div><label className="text-xs font-bold text-slate-600">Description</label><textarea value={editingItem.description} onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })} className="w-full rounded-xl border bg-gray-50 p-3 text-sm min-h-[70px]" /></div>
+              <div><label className="text-xs font-bold text-slate-600">Description</label><textarea value={editingItem.description || ""} onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })} className="w-full rounded-xl border bg-gray-50 p-3 text-sm min-h-[70px]" /></div>
               <button type="submit" disabled={isLoading} className="w-full rounded-xl bg-orange-600 py-3 text-sm font-bold text-white shadow hover:bg-orange-700">Save Changes</button>
             </form>
           </div>

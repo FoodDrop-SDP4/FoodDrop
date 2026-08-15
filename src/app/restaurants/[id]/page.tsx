@@ -1,23 +1,22 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { Loader2, MapPin, Star, Plus, Store, X, Minus, ShoppingBag } from "lucide-react";
+import { Loader2, MapPin, Star, Plus, Store } from "lucide-react";
+import { Restaurant, MenuItem } from "../../../types";
 import { useCartStore } from "../../../store/useCartStore";
+import FoodDetailModal from "../../../components/food/FoodDetailModal";
 
-export default function RestaurantDetailPage({
-  params,
-}: {
+interface RestaurantDetailPageProps {
   params: Promise<{ id: string }>;
-}) {
+}
+
+export default function RestaurantDetailPage({ params }: RestaurantDetailPageProps) {
   const resolvedParams = use(params);
   const restaurantId = resolvedParams.id;
 
-  const [restaurant, setRestaurant] = useState<any>(null);
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // 🚀 Modal State for Selected Food Item
-  const [selectedItem, setSelectedItem] = useState<any | null>(null);
-  const [quantity, setQuantity] = useState(1);
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
 
   const addToCart = useCartStore((state) => state.addToCart);
 
@@ -39,33 +38,6 @@ export default function RestaurantDetailPage({
     if (restaurantId) fetchRestaurantDetails();
   }, [restaurantId]);
 
-  // Modal Handlers
-  const handleOpenModal = (item: any) => {
-    setSelectedItem(item);
-    setQuantity(1);
-  };
-
-  const handleCloseModal = () => {
-    setSelectedItem(null);
-    setQuantity(1);
-  };
-
-  const handleModalAddToCart = () => {
-    if (!selectedItem) return;
-
-    addToCart({
-      id: selectedItem.id,
-      name: selectedItem.name,
-      price: selectedItem.price,
-      imageUrl: selectedItem.imageUrl,
-      quantity: quantity,
-      restaurantId: restaurant.id,
-      restaurantName: restaurant.name,
-    });
-
-    handleCloseModal();
-  };
-
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
@@ -83,13 +55,12 @@ export default function RestaurantDetailPage({
     );
   }
 
-  // Dynamic Rating and Review Count Calculation
   const totalReviews = restaurant.reviews?.length || 0;
   const avgRating =
     totalReviews > 0
       ? (
-          restaurant.reviews.reduce(
-            (sum: number, r: any) => sum + Number(r.rating || 0),
+          restaurant.reviews!.reduce(
+            (sum: number, r) => sum + Number(r.rating || 0),
             0
           ) / totalReviews
         ).toFixed(1)
@@ -146,23 +117,25 @@ export default function RestaurantDetailPage({
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {restaurant.menuItems.map((item: any) => (
+            {restaurant.menuItems.map((item) => (
               <div
                 key={item.id}
-                className="group flex flex-col justify-between rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm hover:shadow-md transition cursor-pointer"
-                onClick={() => handleOpenModal(item)}
+                onClick={() => setSelectedItem(item)}
+                className="group flex flex-col justify-between rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:shadow-md cursor-pointer"
               >
                 <div className="flex gap-4">
                   <img
                     src={item.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c"}
                     alt={item.name}
-                    className="h-20 w-20 rounded-2xl object-cover shrink-0 group-hover:scale-105 transition duration-300"
+                    className="h-20 w-20 rounded-2xl object-cover shrink-0 transition duration-300 group-hover:scale-105"
                   />
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-slate-900 group-hover:text-orange-600 transition">
+                    <h3 className="font-bold text-slate-900 transition group-hover:text-orange-600">
                       {item.name}
                     </h3>
-                    <p className="text-xs text-slate-400 line-clamp-2 mt-1">{item.description}</p>
+                    <p className="text-xs text-slate-400 line-clamp-2 mt-1">
+                      {item.description}
+                    </p>
                     <div className="mt-2 flex items-center gap-2">
                       <span className="font-black text-orange-600 text-sm">৳{item.price}</span>
                       {item.category && (
@@ -182,7 +155,7 @@ export default function RestaurantDetailPage({
                       id: item.id,
                       name: item.name,
                       price: item.price,
-                      imageUrl: item.imageUrl,
+                      imageUrl: item.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c",
                       quantity: 1,
                       restaurantId: restaurant.id,
                       restaurantName: restaurant.name,
@@ -199,84 +172,13 @@ export default function RestaurantDetailPage({
         )}
       </div>
 
-      {/* FOOD DETAIL MODAL / POPUP */}
-      {selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div 
-            className="relative w-full max-w-lg rounded-3xl bg-white overflow-hidden shadow-2xl border border-slate-100"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Close Button */}
-            <button
-              onClick={handleCloseModal}
-              className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-slate-700 shadow-md backdrop-blur-md hover:bg-white transition"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            {/* Food Image */}
-            <div className="relative h-60 w-full bg-slate-100">
-              <img
-                src={selectedItem.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c"}
-                alt={selectedItem.name}
-                className="h-full w-full object-cover"
-              />
-            </div>
-
-            {/* Food Content Details */}
-            <div className="p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl font-black text-slate-900">{selectedItem.name}</h2>
-                  {selectedItem.category && (
-                    <span className="mt-1 inline-block rounded-md bg-orange-50 px-2.5 py-0.5 text-xs font-bold text-orange-600 border border-orange-100">
-                      {selectedItem.category}
-                    </span>
-                  )}
-                </div>
-                <span className="text-2xl font-black text-orange-600">৳{selectedItem.price}</span>
-              </div>
-
-              <div className="mt-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Description</h4>
-                <p className="mt-1 text-sm text-slate-600 leading-relaxed">
-                  {selectedItem.description || "No description provided for this item."}
-                </p>
-              </div>
-
-              {/* Quantity Counter & Add To Cart Button */}
-              <div className="mt-8 flex items-center gap-4 pt-4 border-t border-slate-100">
-                <div className="flex items-center gap-3 rounded-2xl bg-slate-100 p-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm transition hover:bg-slate-200"
-                  >
-                    <Minus className="h-4 w-4" />
-                  </button>
-                  <span className="w-6 text-center font-bold text-slate-900">{quantity}</span>
-                  <button
-                    type="button"
-                    onClick={() => setQuantity((prev) => prev + 1)}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm transition hover:bg-slate-200"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleModalAddToCart}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-orange-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange-600/30 transition hover:bg-orange-700"
-                >
-                  <ShoppingBag className="h-4 w-4" />
-                  Add to Cart (৳{selectedItem.price * quantity})
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Reusable Food Detail Modal */}
+      <FoodDetailModal
+        item={selectedItem}
+        isOpen={Boolean(selectedItem)}
+        onClose={() => setSelectedItem(null)}
+        restaurantName={restaurant.name}
+      />
     </main>
   );
 }

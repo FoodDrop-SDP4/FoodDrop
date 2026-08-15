@@ -1,50 +1,79 @@
-// File: src/app/api/auth/login/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
-import * as bcrypt from "bcryptjs";
+import { createSessionToken, setSessionCookie } from "../../../../lib/auth";
+import bcrypt from "bcryptjs";
 
 export async function POST(request: Request) {
   try {
     const { email, password } = await request.json();
 
     if (!email || !password) {
-      return NextResponse.json({ message: "Email and password are required!" }, { status: 400 });
+      return NextResponse.json(
+        { message: "Email and password are required!" },
+        { status: 400 }
+      );
     }
 
-    // ডাটাবেজে ইউজার খোঁজা
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Look up user in database
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: cleanEmail },
     });
 
     if (!user) {
-      return NextResponse.json({ message: "Invalid email or password!" }, { status: 401 });
+      return NextResponse.json(
+        { message: "Invalid email or password!" },
+        { status: 401 }
+      );
     }
 
-    // পাসওয়ার্ড ম্যাচ করা (bcrypt দিয়ে)
-    const isPasswordValid = await bcrypt.compare(password, user.password).catch(() => false);
+    // Verify password via bcrypt
+    let isPasswordValid = await bcrypt.compare(password, user.password).catch(() => false);
 
-    // যদি bcrypt ম্যাচ না করে, তবে প্লেন টেক্সট চেক (ব্যাকওয়ার্ড কম্প্যাটিবিলিটির জন্য)
-    const isDirectMatch = user.password === password;
-
-    if (!isPasswordValid && !isDirectMatch) {
-      return NextResponse.json({ message: "Invalid email or password!" }, { status: 401 });
+    // Auto-migrate legacy plaintext password if encountered
+    if (!isPasswordValid && user.password === password) {
+      isPasswordValid = true;
+      const rehashedPassword = await bcrypt.hash(password, 10);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: rehashedPassword },
+      });
     }
 
-    // লগইন সাকসেসফুল হলে ইউজারের প্রয়োজনীয় ডাটা রিটার্ন করা
-    return NextResponse.json(
+    if (!isPasswordValid) {
+      return NextResponse.json(
+        { message: "Invalid email or password!" },
+        { status: 401 }
+      );
+    }
+
+    const safeUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
+
+    // 🔒 Create signed JWT session token
+    const token = await createSessionToken(safeUser);
+
+    // Return safe user data with HTTP-only cookie
+    const response = NextResponse.json(
       {
         message: "Login successful!",
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
+        user: safeUser,
       },
       { status: 200 }
     );
+
+    setSessionCookie(response, token);
+    return response;
   } catch (error) {
     console.error("Login Error:", error);
-    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../../lib/prisma";
 
 // GET: Fetch reviews for a restaurant or menu item
@@ -8,7 +9,7 @@ export async function GET(request: Request) {
     const restaurantId = searchParams.get("restaurantId");
     const menuItemId = searchParams.get("menuItemId");
 
-    const whereCondition: any = {};
+    const whereCondition: Prisma.ReviewWhereInput = {};
     if (restaurantId) whereCondition.restaurantId = restaurantId;
     if (menuItemId) whereCondition.menuItemId = menuItemId;
 

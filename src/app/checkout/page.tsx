@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ShoppingBag, MapPin, Phone, CreditCard, Loader2, CheckCircle2, ArrowLeft, Home, Briefcase } from "lucide-react";
 import Link from "next/link";
+import { User, Address } from "../../types";
 
 export default function CheckoutPage() {
   const { cart, clearCart } = useCartStore();
@@ -16,8 +17,8 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState("CASH_ON_DELIVERY");
   const [isLoading, setIsLoading] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");

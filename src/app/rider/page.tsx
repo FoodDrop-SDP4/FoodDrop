@@ -4,17 +4,22 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bike, Power, DollarSign, CheckCircle2, Clock, MapPin, Phone, PackageCheck, Loader2, Store } from "lucide-react";
 import Link from "next/link";
+import { User, Order, TodaySummary } from "../../types";
+
 export default function RiderDashboardPage() {
   const router = useRouter();
-  const [rider, setRider] = useState<any>(null);
+  const [rider, setRider] = useState<User | null>(null);
   const [isOnline, setIsOnline] = useState(true);
-  const [activeOrder, setActiveOrder] = useState<any>(null);
-  const [availableOrders, setAvailableOrders] = useState<any[]>([]);
-  const [todaySummary, setTodaySummary] = useState({ count: 0, earnings: 0 });
+  const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+  const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
+  const [todaySummary, setTodaySummary] = useState<TodaySummary>({ count: 0, earnings: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  
+  // 🚀 Step 3: নির্দিষ্ট অর্ডারের লোডিং স্টেট ট্র্যাক করার জন্য
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
-  // 🚀 riderId প্যারামিটার হিসেবে রিসিভ করা হচ্ছে
+  // 🚀 রাইডারের অ্যাক্টিভ অর্ডার এবং আজকের সামারি ফেচ করা
   const fetchRiderData = async (riderId: string) => {
     if (!riderId) return;
     try {
@@ -22,13 +27,26 @@ export default function RiderDashboardPage() {
       if (res.ok) {
         const data = await res.json();
         setActiveOrder(data.activeOrder);
-        setAvailableOrders(data.availableOrders || []);
         setTodaySummary(data.todaySummary || { count: 0, earnings: 0 });
+        // availableOrders এখান থেকে সরিয়ে নিচে আলাদা ৩ সেকেন্ডের পলিং-এ নিয়ে যাওয়া হয়েছে
       }
     } catch (err) {
       console.error("Error fetching rider data:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // 🚀 Step 3: রিয়েল-টাইমে অ্যাভেইলেবল অর্ডার খোঁজার জন্য (Polling)
+  const fetchAvailableOrders = async () => {
+    try {
+      const res = await fetch("/api/rider/available-orders");
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableOrders(data);
+      }
+    } catch (err) {
+      console.error("Error fetching available orders:", err);
     }
   };
 
@@ -49,11 +67,20 @@ export default function RiderDashboardPage() {
       setRider(user);
       setIsOnline(user.isOnline ?? true);
       
-      // 🚀 user.id সঠিকভাবে পাস করা হচ্ছে
+      // Initial Fetch
       fetchRiderData(user.id);
+      fetchAvailableOrders();
 
-      const interval = setInterval(() => fetchRiderData(user.id), 10000);
-      return () => clearInterval(interval);
+      // 🚀 Step 3: ৩ সেকেন্ড পর পর অ্যাভেইলেবল অর্ডার আপডেট করবে (অটো সিঙ্ক)
+      const availableInterval = setInterval(() => fetchAvailableOrders(), 3000);
+      
+      // ১০ সেকেন্ড পর পর রাইডারের অ্যাক্টিভ অর্ডার ও সামারি আপডেট করবে
+      const mainInterval = setInterval(() => fetchRiderData(user.id), 10000);
+      
+      return () => {
+        clearInterval(availableInterval);
+        clearInterval(mainInterval);
+      };
     } catch (e) {
       console.error(e);
       router.push("/login");
@@ -80,7 +107,45 @@ export default function RiderDashboardPage() {
     }
   };
 
-  const handleUpdateOrderStatus = async (orderId: string, status: string, assignRider = false) => {
+  // 🚀 Step 3: অর্ডার এক্সেপ্ট করার জন্য Atomic Update API-তে কল
+  const handleAcceptOrder = async (orderId: string) => {
+    if (!rider?.id) return;
+    setAcceptingId(orderId);
+    
+    try {
+      const res = await fetch("/api/rider/accept-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          riderId: rider.id,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        alert("🎉 " + data.message);
+        // লোকাল স্টেট থেকে সাথে সাথেই রিমুভ
+        setAvailableOrders((prev) => prev.filter((o) => o.id !== orderId));
+        // অ্যাক্টিভ অর্ডারে এটি লোড করার জন্য রাইডার ডাটা রিফ্রেশ
+        fetchRiderData(rider.id);
+      } else {
+        // ⚠️ যদি অন্য কেউ আগে এক্সেপ্ট করে ফেলে
+        alert("⚠️ " + data.message);
+        // স্ক্রিন থেকে ওই অর্ডারটি সাথে সাথে ফেলে দাও
+        setAvailableOrders((prev) => prev.filter((o) => o.id !== orderId));
+      }
+    } catch (err) {
+      console.error("Accept error:", err);
+      alert("Something went wrong! Please try again.");
+    } finally {
+      setAcceptingId(null);
+    }
+  };
+
+  // অ্যাক্টিভ অর্ডারের স্ট্যাটাস (Picked Up / Delivered) আপডেট করার জন্য
+  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
     if (!rider?.id) return;
     setActionLoading(true);
     try {
@@ -89,7 +154,6 @@ export default function RiderDashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderId,
-          riderId: assignRider ? rider.id : undefined,
           status,
         }),
       });
@@ -120,12 +184,12 @@ export default function RiderDashboardPage() {
 
         {/* 1. Header & Online/Offline Toggle */}
         <div className="flex items-center gap-2">
-            <Link href="/rider/profile"
-    className="rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-xs font-bold text-slate-700 hover:bg-slate-200 transition"
-  >
-    Earnings & Profile
+          <Link href="/rider/profile"
+            className="rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-xs font-bold text-slate-700 hover:bg-slate-200 transition"
+          >
+            Earnings & Profile
           </Link>
-</div>
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-100 text-orange-600">
@@ -180,7 +244,7 @@ export default function RiderDashboardPage() {
           <div className="rounded-3xl border-2 border-orange-500 bg-white p-6 shadow-xl space-y-4 relative overflow-hidden">
             <div className="flex items-center justify-between border-b pb-3">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3.5 py-1 text-xs font-bold text-orange-600">
-                📦 Active Delivery #{activeOrder.id.slice(-6)}
+                📦 Active Delivery #{activeOrder.id.slice(-6).toUpperCase()}
               </span>
               <span className="text-xs font-bold text-slate-400">Est. Fee: ৳{activeOrder.deliveryFee || 60}</span>
             </div>
@@ -212,11 +276,11 @@ export default function RiderDashboardPage() {
             </div>
 
             <div className="pt-2">
-              {activeOrder.status === "PREPARING" || activeOrder.status === "READY_FOR_PICKUP" ? (
+              {activeOrder.status === "ACCEPTED_BY_RIDER" || activeOrder.status === "PREPARING" || activeOrder.status === "READY_FOR_PICKUP" ? (
                 <button
                   disabled={actionLoading}
                   onClick={() => handleUpdateOrderStatus(activeOrder.id, "ON_THE_WAY")}
-                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-slate-900 py-4 text-xs font-bold text-white shadow-lg transition hover:bg-orange-600"
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-slate-900 py-4 text-xs font-bold text-white shadow-lg transition hover:bg-orange-600 disabled:opacity-50"
                 >
                   {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
                   <span>Mark as Picked Up</span>
@@ -225,7 +289,7 @@ export default function RiderDashboardPage() {
                 <button
                   disabled={actionLoading}
                   onClick={() => handleUpdateOrderStatus(activeOrder.id, "DELIVERED")}
-                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-4 text-xs font-bold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700"
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-4 text-xs font-bold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-50"
                 >
                   {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                   <span>Mark as Delivered</span>
@@ -261,7 +325,7 @@ export default function RiderDashboardPage() {
                   <div key={order.id} className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm space-y-3">
                     <div className="flex items-center justify-between border-b pb-2">
                       <span className="font-black text-slate-900 text-sm">{order.restaurant?.name}</span>
-                      <span className="font-extrabold text-orange-600 text-sm">৳60 Earning</span>
+                      <span className="font-extrabold text-orange-600 text-sm">৳{order.deliveryFee || 60} Earning</span>
                     </div>
 
                     <div className="text-xs space-y-1.5 text-slate-600">
@@ -270,11 +334,11 @@ export default function RiderDashboardPage() {
                     </div>
 
                     <button
-                      disabled={actionLoading}
-                      onClick={() => handleUpdateOrderStatus(order.id, "PREPARING", true)}
-                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-orange-600 py-3 text-xs font-bold text-white shadow-md shadow-orange-100 transition hover:bg-orange-700"
+                      disabled={acceptingId === order.id}
+                      onClick={() => handleAcceptOrder(order.id)}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-orange-600 py-3 text-xs font-bold text-white shadow-md shadow-orange-100 transition hover:bg-orange-700 disabled:opacity-50"
                     >
-                      {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Accept Order"}
+                      {acceptingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Accept Order"}
                     </button>
                   </div>
                 ))}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { createSessionToken, setSessionCookie } from '../../../../lib/auth';
 import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
@@ -11,36 +12,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Essential fields are missing!' }, { status: 400 });
     }
 
-    // চেক করা ইমেইল অলরেডি আছে কি না
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Check if email is already registered
     const existingUser = await prisma.user.findUnique({
-      where: { email },
+      where: { email: cleanEmail },
     });
 
     if (existingUser) {
       return NextResponse.json({ message: 'Email already registered!' }, { status: 400 });
     }
 
-    // পাসওয়ার্ড হাশ করা
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 🔒 Prisma Transaction: ইউজার এবং রেস্টুরেন্ট দুটোই একসাথে ক্রিয়েট হবে
+    // 🔒 Prisma Transaction: Create User (Owner) & Restaurant profile
     const result = await prisma.$transaction(async (tx) => {
-      // ১. প্রথমে ইউজার ক্রিয়েট করা (Role: RESTAURANT_OWNER)
       const newUser = await tx.user.create({
         data: {
-          name: ownerName,
-          email,
+          name: ownerName.trim(),
+          email: cleanEmail,
           password: hashedPassword,
-          phone: phone || '',
+          phone: phone?.trim() || '',
           role: 'RESTAURANT_OWNER',
         },
       });
 
-      // ২. সাথে সাথেই তার আন্ডারে রেস্টুরেন্ট প্রোফাইল ক্রিয়েট করা
       const newRestaurant = await tx.restaurant.create({
         data: {
-          name: name, 
-          address: address || 'Dhaka, Bangladesh',
+          name: name.trim(), 
+          address: address?.trim() || 'Dhaka, Bangladesh',
           ownerId: newUser.id, 
         },
       });
@@ -48,19 +49,27 @@ export async function POST(request: Request) {
       return { newUser, newRestaurant };
     });
 
-    return NextResponse.json(
+    const safeUser = {
+      id: result.newUser.id, 
+      name: result.newUser.name, 
+      email: result.newUser.email, 
+      role: result.newUser.role,
+    };
+
+    // 🔒 Create signed JWT session token
+    const token = await createSessionToken(safeUser);
+
+    const response = NextResponse.json(
       {
         message: 'Restaurant & Owner registered successfully!',
-        user: { 
-          id: result.newUser.id, 
-          name: result.newUser.name, 
-          email: result.newUser.email, 
-          role: result.newUser.role 
-        },
+        user: safeUser,
         restaurant: result.newRestaurant,
       },
       { status: 201 }
     );
+
+    setSessionCookie(response, token);
+    return response;
   } catch (error: any) {
     console.error('Restaurant Registration Error:', error);
     return NextResponse.json({ message: error?.message || 'Internal Server Error' }, { status: 500 });

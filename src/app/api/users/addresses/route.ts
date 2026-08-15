@@ -1,4 +1,3 @@
-// File: src/app/api/user/addresses/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 
@@ -11,7 +10,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: "User ID is required" }, { status: 400 });
     }
 
-    const addresses = await (prisma as any).address.findMany({
+    const addresses = await prisma.address.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
     });
@@ -28,13 +27,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { userId, label, address } = body;
 
-    console.log("👉 Incoming Address Payload:", { userId, label, address });
-
     if (!userId || !address) {
       return NextResponse.json({ message: "UserId and Address are required" }, { status: 400 });
     }
 
-    const newAddress = await (prisma as any).address.create({
+    const newAddress = await prisma.address.create({
       data: {
         userId,
         label: label || "Home",
@@ -44,7 +41,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(newAddress, { status: 201 });
   } catch (error: any) {
-    console.error("❌ Prisma Address Create Error:", error);
+    console.error("Prisma Address Create Error:", error);
     return NextResponse.json({ message: error?.message || "Failed to save address details" }, { status: 500 });
   }
 }
@@ -58,7 +55,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ message: "Address ID is required" }, { status: 400 });
     }
 
-    await (prisma as any).address.delete({
+    await prisma.address.delete({
       where: { id },
     });
 

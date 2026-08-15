@@ -5,9 +5,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Store, Bike, UserCircle, LogOut, Utensils, ShoppingBag, Package, MapPin } from "lucide-react";
 import { useCartStore } from "../../store/useCartStore";
+import { User } from "../../types";
 
 export default function Navbar() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
 
   const cart = useCartStore((state) => state.cart);
@@ -15,7 +16,21 @@ export default function Navbar() {
 
   const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  const syncUser = () => {
+  const syncUser = async () => {
+    try {
+      const res = await fetch("/api/auth/me");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          setUser(data.user);
+          localStorage.setItem("user", JSON.stringify(data.user));
+          return;
+        }
+      }
+    } catch (err) {
+      // Fallback to localStorage if offline
+    }
+
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
@@ -40,7 +55,12 @@ export default function Navbar() {
     };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {
+      console.error("Logout error:", e);
+    }
     localStorage.removeItem("user");
     setUser(null);
     window.dispatchEvent(new Event("user-state-change"));
