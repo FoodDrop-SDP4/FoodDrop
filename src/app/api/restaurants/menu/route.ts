@@ -46,14 +46,26 @@ const defaultCategoryImages: Record<string, string> = {
   "Beverages & Drinks": "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=80",
 };
 
-const formatMenuItems = (items: any[]) =>
-  items.map((item: any) => {
+import { Prisma } from '@prisma/client';
+
+type MenuItemWithReviews = Prisma.MenuItemGetPayload<{
+  include: {
+    restaurant: {
+      include: {
+        reviews: true;
+      };
+    };
+  };
+}>;
+
+const formatMenuItems = (items: (MenuItemWithReviews | typeof fallbackMenuItems[0])[]) =>
+  items.map((item) => {
     const reviews = item.restaurant?.reviews || [];
     const totalReviews = reviews.length;
 
     let avgRating = 0;
     if (totalReviews > 0) {
-      const totalRatingSum = reviews.reduce((sum: number, review: any) => sum + Number(review.rating || 0), 0);
+      const totalRatingSum = reviews.reduce((sum: number, review) => sum + Number(review.rating || 0), 0);
       avgRating = Number((totalRatingSum / totalReviews).toFixed(1));
     }
 

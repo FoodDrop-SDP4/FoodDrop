@@ -4,14 +4,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bike, Power, DollarSign, CheckCircle2, Clock, MapPin, Phone, PackageCheck, Loader2, Store } from "lucide-react";
 import Link from "next/link";
+import { User, Order, TodaySummary } from "../../types";
 
 export default function RiderDashboardPage() {
   const router = useRouter();
-  const [rider, setRider] = useState<any>(null);
+  const [rider, setRider] = useState<User | null>(null);
   const [isOnline, setIsOnline] = useState(true);
-  const [activeOrder, setActiveOrder] = useState<any>(null);
-  const [availableOrders, setAvailableOrders] = useState<any[]>([]);
-  const [todaySummary, setTodaySummary] = useState({ count: 0, earnings: 0 });
+  const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+  const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
+  const [todaySummary, setTodaySummary] = useState<TodaySummary>({ count: 0, earnings: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   

@@ -4,13 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin, Plus, Trash2, Home, Briefcase, Loader2, ArrowLeft, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
-
-type Address = {
-  id: string;
-  label: string;
-  address: string;
-  isDefault: boolean;
-};
+import { Address } from "../../../types";
 
 export default function SavedAddressesPage() {
   const [addresses, setAddresses] = useState<Address[]>([]);

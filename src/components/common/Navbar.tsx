@@ -5,9 +5,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Store, Bike, UserCircle, LogOut, Utensils, ShoppingBag, Package, MapPin } from "lucide-react";
 import { useCartStore } from "../../store/useCartStore";
+import { User } from "../../types";
 
 export default function Navbar() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
 
   const cart = useCartStore((state) => state.cart);
