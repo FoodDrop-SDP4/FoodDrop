@@ -88,6 +88,9 @@ export default function OrderCard({
   const isActiveOrder =
     order.status !== "DELIVERED" && order.status !== "CANCELLED";
 
+  const isOnlinePaid =
+    order.paymentMethod && order.paymentMethod !== "CASH_ON_DELIVERY";
+
   return (
     <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm transition-all hover:shadow-md">
       {/* Header */}
@@ -141,14 +144,23 @@ export default function OrderCard({
 
         {/* Footer info & Actions */}
         <div className="pt-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <MapPin className="h-4 w-4 text-slate-400 shrink-0" />
-            <span className="truncate max-w-xs">{order.deliveryAddress}</span>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <MapPin className="h-4 w-4 text-slate-400 shrink-0" />
+              <span className="truncate max-w-xs">{order.deliveryAddress}</span>
+            </div>
+            {order.contactPhone && (
+              <p className="text-[11px] text-slate-400 font-medium pl-6">
+                Contact: <span className="font-bold text-slate-600">{order.contactPhone}</span>
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-3 ml-auto">
             <div className="text-right mr-2">
-              <span className="text-[11px] text-slate-400 font-bold block">Total Paid</span>
+              <span className="text-[11px] text-slate-400 font-bold block">
+                {isOnlinePaid ? `Paid (${order.paymentMethod})` : "Cash on Delivery"}
+              </span>
               <span className="text-base font-black text-slate-900">৳{order.totalAmount}</span>
             </div>
 
@@ -185,10 +197,18 @@ export default function OrderCard({
               </button>
             )}
 
-            {/* Cancelled notice */}
+            {/* Cancelled notice - Online Refunded vs COD */}
             {order.status === "CANCELLED" && (
-              <span className="text-xs font-bold text-rose-500 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-100">
-                Cancelled • Auto-Refunded
+              <span
+                className={`text-xs font-bold px-3 py-1.5 rounded-xl border ${
+                  isOnlinePaid
+                    ? "text-rose-600 bg-rose-50 border-rose-200"
+                    : "text-slate-600 bg-slate-100 border-slate-200"
+                }`}
+              >
+                {isOnlinePaid
+                  ? `Cancelled • Auto-Refunded (${order.paymentMethod})`
+                  : "Cancelled (COD • No Charge)"}
               </span>
             )}
           </div>

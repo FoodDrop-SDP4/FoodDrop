@@ -322,12 +322,12 @@ export default function RiderDashboardPage() {
                 </div>
                 <h4 className="font-black text-slate-900">{activeOrder.customer?.name || "Customer"}</h4>
                 <p className="text-xs text-slate-600">{activeOrder.deliveryAddress}</p>
-                {activeOrder.customer?.phone && (
+                {(activeOrder.contactPhone || activeOrder.customer?.phone) && (
                   <a
-                    href={`tel:${activeOrder.customer.phone}`}
+                    href={`tel:${activeOrder.contactPhone || activeOrder.customer?.phone}`}
                     className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:underline pt-1"
                   >
-                    <Phone className="h-3 w-3" /> Call Customer ({activeOrder.customer.phone})
+                    <Phone className="h-3 w-3" /> Call Customer ({activeOrder.contactPhone || activeOrder.customer?.phone})
                   </a>
                 )}
               </div>

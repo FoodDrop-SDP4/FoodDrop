@@ -68,9 +68,14 @@ export default function CustomerOrdersPage() {
   };
 
   const handleCancelOrder = async (order: Order) => {
-    const isConfirmed = confirm(
-      `Are you sure you want to cancel Order #${order.id.slice(0, 8)}?\n\nIf you paid online via bKash/Nagad/Card, an automated refund of ৳${order.totalAmount} will be immediately initiated.`
-    );
+    const isOnlinePaid =
+      order.paymentMethod && order.paymentMethod !== "CASH_ON_DELIVERY";
+
+    const promptText = isOnlinePaid
+      ? `Are you sure you want to cancel Order #${order.id.slice(0, 8)}?\n\nSince this order was paid online via ${order.paymentMethod}, an automated refund of ৳${order.totalAmount} will be immediately initiated to your account.`
+      : `Are you sure you want to cancel Order #${order.id.slice(0, 8)}? (Cash on Delivery order)`;
+
+    const isConfirmed = confirm(promptText);
     if (!isConfirmed) return;
 
     try {

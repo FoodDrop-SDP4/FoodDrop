@@ -176,7 +176,16 @@ export default function ProfessionalRestaurantDashboard() {
       });
       if (res.ok) {
         if (newStatus === "CANCELLED") {
-          alert("Order declined. If the customer paid online via bKash/Nagad/Card, an automated refund has been initiated to their account.");
+          const target = restaurant?.orders.find((o) => o.id === orderId);
+          const isOnline =
+            target?.paymentMethod && target.paymentMethod !== "CASH_ON_DELIVERY";
+          if (isOnline) {
+            alert(
+              `Order declined. An automated refund of ৳${target?.totalAmount} has been initiated to the customer's ${target?.paymentMethod} account.`
+            );
+          } else {
+            alert("Order declined. (Cash on Delivery order - no payment charged).");
+          }
         }
         fetchDashboardData(ownerId || undefined);
       }
@@ -285,8 +294,19 @@ export default function ProfessionalRestaurantDashboard() {
                   {restaurant.orders.map((order) => (
                     <div key={order.id} className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 space-y-3">
                       <div className="flex items-center justify-between">
-                        <div><span className={`rounded-full px-3 py-1 text-xs font-bold ${order.status === "CANCELLED" ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}`}>{order.status}</span><h4 className="mt-2 font-black text-slate-900">৳{order.totalAmount}</h4></div>
-                        <div className="text-right text-xs text-slate-500"><p className="font-bold text-slate-900">{order.customer?.name || "Customer"}</p><p>{order.customer?.phone || "No Phone"}</p></div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className={`rounded-full px-3 py-1 text-xs font-bold ${order.status === "CANCELLED" ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}`}>{order.status}</span>
+                            <span className="text-[11px] font-bold text-slate-400">
+                              {order.paymentMethod && order.paymentMethod !== "CASH_ON_DELIVERY" ? `Paid (${order.paymentMethod})` : "Cash on Delivery"}
+                            </span>
+                          </div>
+                          <h4 className="mt-2 font-black text-slate-900">৳{order.totalAmount}</h4>
+                        </div>
+                        <div className="text-right text-xs text-slate-500">
+                          <p className="font-bold text-slate-900">{order.customer?.name || "Customer"}</p>
+                          <p>{order.contactPhone || order.customer?.phone || "No Phone"}</p>
+                        </div>
                       </div>
                       <div className="text-xs text-slate-600 border-t border-slate-200/60 pt-2"><ul className="list-disc pl-4 space-y-0.5">{order.orderItems?.map((oi) => (<li key={oi.id}>{oi.menuItem?.name} × {oi.quantity}</li>))}</ul></div>
                       <div className="flex gap-2 pt-2">

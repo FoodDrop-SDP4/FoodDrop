@@ -34,10 +34,18 @@ export async function POST(
       },
     });
 
+    const isOnlinePayment =
+      order.paymentMethod && order.paymentMethod !== "CASH_ON_DELIVERY";
+
+    const message = isOnlinePayment
+      ? `Your order has been cancelled successfully. Since you paid online via ${order.paymentMethod}, an automated refund of ৳${order.totalAmount} has been initiated to your account.`
+      : "Your Cash on Delivery order has been cancelled successfully. No payment was charged.";
+
     return NextResponse.json(
       {
-        message:
-          "Your order has been cancelled successfully. If you paid online via bKash, Nagad, or Card, a full automated refund has been initiated to your account.",
+        message,
+        isOnlinePayment,
+        refundInitiated: isOnlinePayment,
         order: updatedOrder,
       },
       { status: 200 }

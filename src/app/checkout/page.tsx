@@ -60,20 +60,61 @@ export default function CheckoutPage() {
   const [activeGateway, setActiveGateway] = useState<PaymentGatewayType>("BKASH");
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      router.push("/login?redirect=/checkout");
-    } else {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
+    const hydrateUser = async () => {
+      let currentUser: User | null = null;
 
-      fetch(`/api/users/addresses?userId=${parsedUser.id}`)
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        try {
+          currentUser = JSON.parse(storedUser);
+        } catch (e) {
+          currentUser = null;
+        }
+      }
+
+      if (!currentUser) {
+        try {
+          const authRes = await fetch("/api/auth/me");
+          if (authRes.ok) {
+            const authData = await authRes.json();
+            if (authData.user) {
+              currentUser = authData.user;
+              localStorage.setItem("user", JSON.stringify(authData.user));
+            }
+          }
+        } catch (e) {
+          // quiet
+        }
+      }
+
+      if (!currentUser) {
+        router.push("/login?redirect=/checkout");
+        return;
+      }
+
+      setUser(currentUser);
+
+      // 🚀 Auto-prefill registered phone number from account
+      if (currentUser.phone) {
+        setPhone(currentUser.phone);
+      }
+
+      // Fetch saved addresses and auto-select default
+      fetch(`/api/users/addresses?userId=${currentUser.id}`)
         .then((res) => res.json())
         .then((data) => {
-          if (Array.isArray(data)) setSavedAddresses(data);
+          if (Array.isArray(data) && data.length > 0) {
+            setSavedAddresses(data);
+            const defaultAddr = data.find((a: Address) => a.isDefault) || data[0];
+            if (defaultAddr?.address) {
+              setDeliveryAddress((prev) => prev || defaultAddr.address);
+            }
+          }
         })
         .catch((err) => console.error("Error fetching saved addresses:", err));
-    }
+    };
+
+    hydrateUser();
   }, [router]);
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -296,7 +337,12 @@ export default function CheckoutPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-600">Contact Phone Number</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-600">Contact Phone Number</label>
+                    <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">
+                      Auto-filled • Editable
+                    </span>
+                  </div>
                   <input
                     required
                     type="tel"
