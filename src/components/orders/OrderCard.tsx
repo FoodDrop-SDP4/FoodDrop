@@ -88,8 +88,13 @@ export default function OrderCard({
   const isActiveOrder =
     order.status !== "DELIVERED" && order.status !== "CANCELLED";
 
-  const isOnlinePaid =
-    order.paymentMethod && order.paymentMethod !== "CASH_ON_DELIVERY";
+  const storedPayment =
+    typeof window !== "undefined"
+      ? localStorage.getItem(`fooddrop_order_${order.id}_payment`)
+      : null;
+
+  const paymentMethod = order.paymentMethod || storedPayment || "CASH_ON_DELIVERY";
+  const isOnlinePaid = paymentMethod !== "CASH_ON_DELIVERY";
 
   return (
     <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm transition-all hover:shadow-md">
@@ -149,9 +154,9 @@ export default function OrderCard({
               <MapPin className="h-4 w-4 text-slate-400 shrink-0" />
               <span className="truncate max-w-xs">{order.deliveryAddress}</span>
             </div>
-            {order.contactPhone && (
+            {(order.contactPhone || order.customer?.phone) && (
               <p className="text-[11px] text-slate-400 font-medium pl-6">
-                Contact: <span className="font-bold text-slate-600">{order.contactPhone}</span>
+                Contact: <span className="font-bold text-slate-600">{order.contactPhone || order.customer?.phone}</span>
               </p>
             )}
           </div>
@@ -159,7 +164,7 @@ export default function OrderCard({
           <div className="flex flex-wrap items-center gap-3 ml-auto">
             <div className="text-right mr-2">
               <span className="text-[11px] text-slate-400 font-bold block">
-                {isOnlinePaid ? `Paid (${order.paymentMethod})` : "Cash on Delivery"}
+                {isOnlinePaid ? `Paid (${paymentMethod})` : "Cash on Delivery"}
               </span>
               <span className="text-base font-black text-slate-900">৳{order.totalAmount}</span>
             </div>
@@ -178,7 +183,7 @@ export default function OrderCard({
             {/* Customer can cancel only if PENDING (before restaurant starts cooking) */}
             {order.status === "PENDING" && onCancelOrder && (
               <button
-                onClick={() => onCancelOrder(order)}
+                onClick={() => onCancelOrder({ ...order, paymentMethod })}
                 className="flex items-center gap-1 rounded-2xl bg-rose-50 px-3.5 py-2.5 text-xs font-bold text-rose-600 border border-rose-200 transition hover:bg-rose-100 active:scale-95"
               >
                 <XCircle className="h-3.5 w-3.5" />
@@ -207,7 +212,7 @@ export default function OrderCard({
                 }`}
               >
                 {isOnlinePaid
-                  ? `Cancelled • Auto-Refunded (${order.paymentMethod})`
+                  ? `Cancelled • Auto-Refunded (${paymentMethod})`
                   : "Cancelled (COD • No Charge)"}
               </span>
             )}

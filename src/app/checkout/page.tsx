@@ -183,6 +183,14 @@ export default function CheckoutPage() {
 
       if (res.ok) {
         const data = await res.json();
+        const finalMethod = extraData?.paymentMethod || paymentMethod;
+        if (data.order?.id) {
+          try {
+            localStorage.setItem(`fooddrop_order_${data.order.id}_payment`, finalMethod);
+          } catch (e) {
+            // ignore
+          }
+        }
         clearCart();
         setPlacedOrderId(data.order?.id || null);
         setOrderPlaced(true);

@@ -107,9 +107,6 @@ model Order {
   deliveryFee     Float       @default(60)
   status          OrderStatus @default(PENDING)
   deliveryAddress String
-  contactPhone    String?
-  paymentMethod   String?     @default("CASH_ON_DELIVERY")
-  transactionId   String?
   
   customerId   String
   restaurantId String
