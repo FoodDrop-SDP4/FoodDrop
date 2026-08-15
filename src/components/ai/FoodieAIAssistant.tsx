@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useCartStore } from "../../store/useCartStore";
 import { triggerConfetti } from "../../lib/confetti";
+import { playAddToCartSound } from "../../lib/sound";
 
 interface DishSuggestion {
   id: string;
@@ -222,6 +223,7 @@ export default function FoodieAIAssistant() {
 
   // Add single dish to cart
   const handleAddToCartFromAI = (dish: DishSuggestion) => {
+    playAddToCartSound();
     addToCart({
       id: dish.id,
       name: dish.name,
@@ -242,6 +244,7 @@ export default function FoodieAIAssistant() {
 
   // 👫 3. Add Entire Combo Meal to Cart
   const handleAddComboToCart = (combo: ComboMeal) => {
+    playAddToCartSound();
     combo.dishes.forEach((dish) => {
       addToCart({
         id: dish.id,

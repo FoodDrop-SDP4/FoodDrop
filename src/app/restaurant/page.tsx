@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { MenuItem, Order, Restaurant, RestaurantStats, CATEGORIES } from "../../types";
 import OrderReceiptModal from "../../components/orders/OrderReceiptModal";
+import { playKitchenBellSound, playCancelAlertSound } from "../../lib/sound";
 
 type RestaurantData = Restaurant & {
   orders: Order[];
@@ -278,6 +279,11 @@ export default function ProfessionalRestaurantDashboard() {
       });
 
       if (res.ok) {
+        if (newStatus === "CANCELLED") {
+          playCancelAlertSound();
+        } else {
+          playKitchenBellSound();
+        }
         fetchDashboardData(ownerId || undefined);
       } else {
         alert("Failed to update order status");

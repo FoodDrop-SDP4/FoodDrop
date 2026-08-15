@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Minus, Plus, ShoppingBag, Star, Tag } from "lucide-react";
 import { MenuItem } from "../../types";
 import { useCartStore } from "../../store/useCartStore";
+import { playAddToCartSound } from "../../lib/sound";
 
 interface FoodDetailModalProps {
   item: MenuItem | null;
@@ -30,6 +31,7 @@ export default function FoodDetailModal({
   if (!isOpen || !item) return null;
 
   const handleAddToCart = () => {
+    playAddToCartSound();
     addToCart({
       id: item.id,
       name: item.name,

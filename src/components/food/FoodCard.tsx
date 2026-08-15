@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ShoppingBag, Star, Store, Tag } from "lucide-react";
 import { MenuItem } from "../../types";
 import { useCartStore } from "../../store/useCartStore";
+import { playAddToCartSound } from "../../lib/sound";
 
 interface FoodCardProps {
   food: MenuItem;
@@ -15,6 +16,7 @@ export default function FoodCard({ food, onSelect }: FoodCardProps) {
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
+    playAddToCartSound();
     addToCart({
       id: food.id,
       name: food.name,
