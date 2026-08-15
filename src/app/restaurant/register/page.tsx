@@ -83,7 +83,7 @@ export default function RestaurantRegisterPage() {
       if (res.ok) {
         // ১. লোকাল স্টোরেজে ইউজার ডাটা সেভ
         localStorage.setItem("user", JSON.stringify(data.user));
-        
+
         // 🚀 ২. নেভবারকে নোটিফাই করা যে নতুন ইউজার লগইন করেছে
         window.dispatchEvent(new Event("user-state-change"));
 
@@ -106,7 +106,7 @@ export default function RestaurantRegisterPage() {
   return (
     <main className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-12 font-sans">
       <div className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-100">
-        
+
         <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-orange-600 mb-6 transition">
           <ArrowLeft className="h-4 w-4" /> Back to Home
         </Link>
@@ -128,7 +128,7 @@ export default function RestaurantRegisterPage() {
         )}
 
         <form onSubmit={handleRegister} className="space-y-5">
-          
+
           <div className="grid gap-5 sm:grid-cols-2">
             {/* Restaurant Name */}
             <div className="relative">
