@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Package, Clock, CheckCircle2, Truck, ChefHat, AlertCircle, MapPin, ArrowLeft, Star, MessageSquare } from "lucide-react";
+import { Loader2, Package, Clock, CheckCircle2, Truck, ChefHat, AlertCircle, MapPin, ArrowLeft, Star, Bike } from "lucide-react";
 import Link from "next/link";
 
 type OrderItem = {
@@ -20,7 +20,8 @@ type Order = {
   id: string;
   restaurantId: string;
   totalAmount: number;
-  status: "PENDING" | "PREPARING" | "READY_FOR_PICKUP" | "ON_THE_WAY" | "DELIVERED" | "CANCELLED";
+  // 🚀 ACCEPTED_BY_RIDER টাইপ যুক্ত করা হয়েছে
+  status: "PENDING" | "PREPARING" | "ACCEPTED_BY_RIDER" | "READY_FOR_PICKUP" | "ON_THE_WAY" | "DELIVERED" | "CANCELLED";
   deliveryAddress: string;
   createdAt: string;
   restaurant: {
@@ -116,6 +117,13 @@ export default function CustomerOrdersPage() {
             <ChefHat className="h-3.5 w-3.5 animate-bounce" /> Kitchen Preparing
           </span>
         );
+      // 🚀 রাইডার এক্সেপ্ট করলে যে স্ট্যাটাস ব্যাজটি দেখাবে
+      case "ACCEPTED_BY_RIDER":
+        return (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-600 border border-indigo-200/60">
+            <Bike className="h-3.5 w-3.5 animate-pulse" /> Rider Accepted Order
+          </span>
+        );
       case "READY_FOR_PICKUP":
       case "ON_THE_WAY":
         return (
@@ -187,7 +195,7 @@ export default function CustomerOrdersPage() {
                   <div className="flex items-center gap-3">
                     {getStatusBadge(order.status)}
 
-                    {/* 🚀 Give Review Button (Only for Delivered Orders) */}
+                    {/* Give Review Button (Only for Delivered Orders) */}
                     {order.status === "DELIVERED" && (
                       <button
                         onClick={() => setReviewOrder(order)}
@@ -238,7 +246,7 @@ export default function CustomerOrdersPage() {
           </div>
         )}
 
-        {/* 🚀 Review Modal */}
+        {/* Review Modal */}
         {reviewOrder && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
             <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4">
