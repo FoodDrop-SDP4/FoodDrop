@@ -26,6 +26,8 @@ export async function POST(request: Request) {
     // 🔒 Hash password securely with bcrypt
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const cleanVehicleType = vehicleType || "Bicycle";
+
     // Create Rider User
     const user = await prisma.user.create({
       data: {
@@ -34,9 +36,11 @@ export async function POST(request: Request) {
         phone: phone.trim(),
         password: hashedPassword,
         role: "RIDER",
-        vehicleType,
-        vehicleNumber,
+        vehicleType: cleanVehicleType,
+        vehicleNumber: cleanVehicleType === "Motorcycle" ? vehicleNumber?.trim() : null,
         isOnline: true,
+        rating: 5.0,
+        totalReviews: 0,
       },
     });
 
@@ -44,11 +48,22 @@ export async function POST(request: Request) {
       id: user.id,
       name: user.name,
       email: user.email,
+      phone: user.phone,
       role: user.role,
+      vehicleType: user.vehicleType,
+      vehicleNumber: user.vehicleNumber,
+      isOnline: user.isOnline,
+      rating: user.rating,
+      totalReviews: user.totalReviews,
     };
 
     // 🔒 Create signed JWT session token
-    const token = await createSessionToken(safeUser);
+    const token = await createSessionToken({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    });
 
     const response = NextResponse.json(
       { message: "Rider registered successfully", user: safeUser },

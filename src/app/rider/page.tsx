@@ -93,6 +93,17 @@ export default function RiderDashboardPage() {
     setRider(user);
     setIsOnline(user.isOnline ?? true);
     fetchRiderData(user.id);
+
+    // Sync full profile from server session to keep all fields fresh
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          setRider(data.user);
+          localStorage.setItem("user", JSON.stringify(data.user));
+        }
+      })
+      .catch(() => {});
   }, [router]);
 
   useEffect(() => {
@@ -230,7 +241,14 @@ export default function RiderDashboardPage() {
             <div>
               <h1 className="text-xl font-black text-slate-900">{rider?.name}</h1>
               <p className="text-xs font-semibold text-slate-500">
-                {rider?.vehicleType || "Motorcycle"} • {rider?.vehicleNumber || "Registration Verified"} • {rider?.phone}
+                {rider?.vehicleType === "Motorcycle"
+                  ? `🏍️ Motorcycle • ${rider?.vehicleNumber || "Verified Registration"}`
+                  : rider?.vehicleType === "Bicycle"
+                  ? "🚲 Bicycle Courier • Eco Partner"
+                  : rider?.vehicleType === "Walking"
+                  ? "🚶 Walker Courier • Local Partner"
+                  : `${rider?.vehicleType || "Delivery Partner"}`}{" "}
+                {rider?.phone && `• ${rider.phone}`}
               </p>
             </div>
           </div>
