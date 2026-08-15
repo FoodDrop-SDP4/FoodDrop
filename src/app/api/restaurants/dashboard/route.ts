@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { parseItemDescription } from '../menu/route';
 
 export async function GET(request: Request) {
   try {
@@ -21,6 +22,7 @@ export async function GET(request: Request) {
         orders: {
           include: {
             customer: true,
+            rider: true,
             orderItems: { include: { menuItem: true } },
           },
           orderBy: { createdAt: 'desc' },
@@ -40,12 +42,23 @@ export async function GET(request: Request) {
           orders: {
             include: {
               customer: true,
+              rider: true,
               orderItems: { include: { menuItem: true } },
             },
           },
         },
       });
     }
+
+    // Format menu items to parse originalPrice and clean description
+    const formattedMenuItems = restaurant.menuItems.map((item) => {
+      const { cleanDescription, originalPrice } = parseItemDescription(item.description);
+      return {
+        ...item,
+        description: cleanDescription,
+        originalPrice,
+      };
+    });
 
     const totalRevenue = restaurant.orders
       .filter((o) => o.status === 'DELIVERED')
@@ -57,7 +70,10 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       ownerName: owner?.name || 'Owner',
-      restaurant,
+      restaurant: {
+        ...restaurant,
+        menuItems: formattedMenuItems,
+      },
       stats: {
         totalRevenue,
         totalOrders: restaurant.orders.length,
