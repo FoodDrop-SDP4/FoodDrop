@@ -18,6 +18,7 @@ import { Order, OrderStatus } from "../../types";
 interface OrderCardProps {
   order: Order;
   onOpenReviewModal: (order: Order) => void;
+  onOpenReceiptModal?: (order: Order) => void;
   onCancelOrder?: (order: Order) => void;
 }
 
@@ -72,6 +73,7 @@ const statusConfig: Record<
 export default function OrderCard({
   order,
   onOpenReviewModal,
+  onOpenReceiptModal,
   onCancelOrder,
 }: OrderCardProps) {
   const currentStatus = statusConfig[order.status] || statusConfig.PENDING;
@@ -168,6 +170,17 @@ export default function OrderCard({
               </span>
               <span className="text-base font-black text-slate-900">৳{order.totalAmount}</span>
             </div>
+
+            {/* 🧾 View Receipt / Invoice Button */}
+            {onOpenReceiptModal && (
+              <button
+                onClick={() => onOpenReceiptModal({ ...order, paymentMethod })}
+                className="flex items-center gap-1.5 rounded-2xl bg-slate-100 px-3.5 py-2.5 text-xs font-bold text-slate-700 border border-slate-200 transition hover:bg-slate-200 active:scale-95"
+                title="View Tax Invoice & Receipt"
+              >
+                <span>Receipt 🧾</span>
+              </button>
+            )}
 
             {/* 🚀 Show Live Tracking button ONLY for active ongoing orders */}
             {isActiveOrder && (

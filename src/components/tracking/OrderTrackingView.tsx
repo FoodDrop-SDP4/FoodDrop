@@ -26,6 +26,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Order, OrderStatus } from "../../types";
+import OrderReceiptModal from "../orders/OrderReceiptModal";
 
 // Dynamic import for Leaflet map component (SSR: false)
 const LiveTrackingMap = dynamic(() => import("./LiveTrackingMap"), {
@@ -68,6 +69,7 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
   const [order, setOrder] = useState<Order>(initialOrder);
   const [currentStatus, setCurrentStatus] = useState<OrderStatus>(initialOrder.status);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
 
   const [progressPercent, setProgressPercent] = useState<number>(() =>
     getProgressByStatus(initialOrder.status)
@@ -297,6 +299,15 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
           </Link>
 
           <div className="flex items-center gap-3">
+            {/* 🧾 View Receipt / Invoice Button */}
+            <button
+              onClick={() => setIsReceiptOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-2xl bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm border border-slate-200 transition hover:bg-orange-50 hover:text-orange-600 active:scale-95"
+              title="View Tax Invoice & Receipt"
+            >
+              <span>Receipt 🧾</span>
+            </button>
+
             {/* 🚀 Cancel Order Button for Customer when PENDING */}
             {currentStatus === "PENDING" && (
               <button
@@ -630,6 +641,13 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
           </div>
         </div>
       )}
+
+      {/* 🧾 Reusable Tax Invoice & POS Receipt Modal */}
+      <OrderReceiptModal
+        order={order}
+        isOpen={isReceiptOpen}
+        onClose={() => setIsReceiptOpen(false)}
+      />
 
     </div>
   );

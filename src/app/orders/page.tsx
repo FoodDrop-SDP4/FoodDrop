@@ -7,11 +7,13 @@ import Link from "next/link";
 import { Order, User } from "../../types";
 import OrderCard from "../../components/orders/OrderCard";
 import ReviewModal from "../../components/orders/ReviewModal";
+import OrderReceiptModal from "../../components/orders/OrderReceiptModal";
 
 export default function CustomerOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [reviewOrder, setReviewOrder] = useState<Order | null>(null);
+  const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const router = useRouter();
 
   const fetchOrders = async () => {
@@ -142,6 +144,7 @@ export default function CustomerOrdersPage() {
                 key={order.id}
                 order={order}
                 onOpenReviewModal={(selected) => setReviewOrder(selected)}
+                onOpenReceiptModal={(selected) => setReceiptOrder(selected)}
                 onCancelOrder={handleCancelOrder}
               />
             ))}
@@ -154,6 +157,13 @@ export default function CustomerOrdersPage() {
           isOpen={Boolean(reviewOrder)}
           onClose={() => setReviewOrder(null)}
           onSuccess={fetchOrders}
+        />
+
+        {/* 🧾 Reusable Official Tax Invoice / Receipt Modal */}
+        <OrderReceiptModal
+          order={receiptOrder}
+          isOpen={Boolean(receiptOrder)}
+          onClose={() => setReceiptOrder(null)}
         />
       </div>
     </main>
