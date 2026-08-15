@@ -17,6 +17,7 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState("CASH_ON_DELIVERY");
   const [isLoading, setIsLoading] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
+  const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
 
@@ -39,13 +40,21 @@ export default function CheckoutPage() {
   }, [router]);
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = cart.length > 0 ? 60 : 0;
+  const deliveryFee = 60;
   const total = subtotal + deliveryFee;
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (cart.length === 0) return alert("Your cart is empty!");
-    if (!user) return alert("Please login to place an order.");
+
+    if (!deliveryAddress || !phone) {
+      alert("Please provide delivery address and phone number!");
+      return;
+    }
+
+    if (!user) {
+      alert("Please login first!");
+      return;
+    }
 
     setIsLoading(true);
 
@@ -57,6 +66,8 @@ export default function CheckoutPage() {
           customerId: user.id,
           restaurantId: cart[0].restaurantId,
           deliveryAddress,
+          phone,
+          paymentMethod,
           totalAmount: total,
           items: cart.map((item) => ({
             menuItemId: item.id,
@@ -66,7 +77,9 @@ export default function CheckoutPage() {
       });
 
       if (res.ok) {
+        const data = await res.json();
         clearCart();
+        setPlacedOrderId(data.order?.id || null);
         setOrderPlaced(true);
       } else {
         const data = await res.json();
@@ -83,18 +96,35 @@ export default function CheckoutPage() {
   if (orderPlaced) {
     return (
       <main className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center font-sans">
-        <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-slate-100 shadow-xl space-y-4">
-          <CheckCircle2 className="h-16 w-16 text-emerald-500 mx-auto animate-bounce" />
-          <h1 className="text-2xl font-black text-slate-900">Order Placed Successfully!</h1>
-          <p className="text-sm text-slate-500">
-            Your order has been sent to the restaurant.
-          </p>
-          <Link
-            href="/"
-            className="block w-full rounded-2xl bg-slate-900 py-3.5 text-sm font-bold text-white transition hover:bg-orange-600"
-          >
-            Back to Home
-          </Link>
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-slate-100 shadow-2xl space-y-6">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-lg">
+            <CheckCircle2 className="h-10 w-10" />
+          </div>
+
+          <div>
+            <h1 className="text-2xl font-black text-slate-900">Order Placed Successfully!</h1>
+            <p className="text-xs text-slate-500 mt-1.5">
+              Your order has been sent to the restaurant and assigned for instant live preparation.
+            </p>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            {placedOrderId && (
+              <Link
+                href={`/orders/${placedOrderId}/track`}
+                className="block w-full rounded-2xl bg-orange-600 py-4 text-sm font-bold text-white shadow-xl shadow-orange-600/30 transition hover:bg-orange-700 active:scale-95"
+              >
+                Track Live on Map 🗺️
+              </Link>
+            )}
+
+            <Link
+              href="/orders"
+              className="block w-full rounded-2xl bg-slate-900 py-3.5 text-xs font-bold text-white transition hover:bg-slate-800"
+            >
+              View My Orders
+            </Link>
+          </div>
         </div>
       </main>
     );

@@ -11,6 +11,7 @@ import {
   Star,
   Bike,
 } from "lucide-react";
+import Link from "next/link";
 import { Order, OrderStatus } from "../../types";
 
 interface OrderCardProps {
@@ -136,11 +137,19 @@ export default function OrderCard({ order, onOpenReviewModal }: OrderCardProps) 
             <span className="truncate max-w-xs">{order.deliveryAddress}</span>
           </div>
 
-          <div className="flex items-center gap-4 ml-auto">
-            <div className="text-right">
-              <span className="text-xs text-slate-400 block">Total Amount</span>
+          <div className="flex flex-wrap items-center gap-3 ml-auto">
+            <div className="text-right mr-2">
+              <span className="text-[11px] text-slate-400 font-bold block">Total Paid</span>
               <span className="text-base font-black text-slate-900">৳{order.totalAmount}</span>
             </div>
+
+            <Link
+              href={`/orders/${order.id}/track`}
+              className="flex items-center gap-1.5 rounded-2xl bg-orange-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-orange-600/20 transition hover:bg-orange-700 active:scale-95"
+            >
+              <Truck className="h-3.5 w-3.5" />
+              <span>Track Live on Map 🗺️</span>
+            </Link>
 
             {order.status === "DELIVERED" && (
               <button
