@@ -74,7 +74,7 @@ export default function LiveTrackingMap({
       className: "custom-restaurant-marker",
       html: `
         <div class="relative flex items-center justify-center">
-          <div class="absolute -inset-2 rounded-full bg-orange-500/30 custom-pulse-ring"></div>
+          <div class="absolute -inset-2 rounded-full bg-orange-500/30 animate-ping"></div>
           <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-600 text-white shadow-xl shadow-orange-600/40 border-2 border-white">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/>
@@ -122,29 +122,33 @@ export default function LiveTrackingMap({
       dashArray: "8, 8",
     }).addTo(map);
 
-    // 4. Moving Rider Marker
-    const riderIcon = L.divIcon({
-      className: "custom-rider-marker",
-      html: `
-        <div class="relative flex items-center justify-center transition-transform duration-300">
-          <div class="absolute -inset-3 rounded-full bg-emerald-500/30 custom-pulse-ring"></div>
-          <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-2xl shadow-emerald-600/50 border-2 border-white">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="18.5" cy="17.5" r="3.5"/>
-              <circle cx="5.5" cy="17.5" r="3.5"/>
-              <circle cx="15" cy="5" r="1"/>
-              <path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
-            </svg>
-          </div>
-        </div>
-      `,
-      iconSize: [48, 48],
-      iconAnchor: [24, 24],
-    });
+    // 4. Moving Rider Marker (Only visible when rider is assigned or on the way)
+    const showRiderMarker = status === "ACCEPTED_BY_RIDER" || status === "ON_THE_WAY" || status === "DELIVERED";
 
-    const riderMarker = L.marker(startCoord, { icon: riderIcon, zIndexOffset: 1000 }).addTo(map);
-    riderMarker.bindPopup("<b>Rider on the Move 🏍️</b><br/>Speed: 32 km/h");
-    riderMarkerRef.current = riderMarker;
+    if (showRiderMarker) {
+      const riderIcon = L.divIcon({
+        className: "custom-rider-marker",
+        html: `
+          <div class="relative flex items-center justify-center transition-transform duration-300">
+            <div class="absolute -inset-3 rounded-full bg-emerald-500/30 animate-pulse"></div>
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-2xl shadow-emerald-600/50 border-2 border-white">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="18.5" cy="17.5" r="3.5"/>
+                <circle cx="5.5" cy="17.5" r="3.5"/>
+                <circle cx="15" cy="5" r="1"/>
+                <path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
+              </svg>
+            </div>
+          </div>
+        `,
+        iconSize: [48, 48],
+        iconAnchor: [24, 24],
+      });
+
+      const riderMarker = L.marker(startCoord, { icon: riderIcon, zIndexOffset: 1000 }).addTo(map);
+      riderMarker.bindPopup("<b>Rider on the Move 🏍️</b><br/>Heading with your order");
+      riderMarkerRef.current = riderMarker;
+    }
 
     // Fit map bounds to encompass both endpoints
     const bounds = L.latLngBounds([startCoord, endCoord]);
@@ -156,7 +160,7 @@ export default function LiveTrackingMap({
       map.remove();
       mapInstanceRef.current = null;
     };
-  }, [restaurantName, deliveryAddress]);
+  }, [restaurantName, deliveryAddress, status]);
 
   // Update Rider position smoothly along route based on progress percentage
   useEffect(() => {
@@ -186,7 +190,17 @@ export default function LiveTrackingMap({
           </span>
         </div>
         <span className="text-xs font-black text-slate-800 tracking-wide uppercase">
-          Live GPS Tracking
+          {status === "PENDING"
+            ? "Waiting for Kitchen"
+            : status === "PREPARING"
+            ? "Cooking in Kitchen"
+            : status === "READY_FOR_PICKUP"
+            ? "Food Ready for Pickup"
+            : status === "ACCEPTED_BY_RIDER"
+            ? "Rider Assigned"
+            : status === "ON_THE_WAY"
+            ? "Rider Out for Delivery"
+            : "Live GPS Tracking"}
         </span>
       </div>
     </div>

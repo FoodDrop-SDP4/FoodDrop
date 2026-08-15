@@ -13,15 +13,17 @@ import {
   MessageSquare,
   Package,
   Phone,
-  Play,
   Radar,
-  RotateCcw,
-  SkipForward,
   Star,
   Store,
   Truck,
   User,
   X,
+  AlertCircle,
+  XCircle,
+  ShoppingBag,
+  CreditCard,
+  Loader2,
 } from "lucide-react";
 import { Order, OrderStatus } from "../../types";
 
@@ -43,26 +45,33 @@ interface OrderTrackingViewProps {
 }
 
 const STAGES: { key: OrderStatus; label: string; sub: string; icon: React.ElementType }[] = [
-  { key: "PENDING", label: "Order Placed", sub: "Received by restaurant", icon: Clock },
-  { key: "PREPARING", label: "Cooking", sub: "Kitchen preparing fresh food", icon: ChefHat },
-  { key: "ACCEPTED_BY_RIDER", label: "Rider Assigned", sub: "Heading to pickup food", icon: Bike },
+  { key: "PENDING", label: "Order Placed", sub: "Waiting for restaurant", icon: Clock },
+  { key: "PREPARING", label: "Cooking", sub: "Kitchen preparing food", icon: ChefHat },
+  { key: "READY_FOR_PICKUP", label: "Food Ready", sub: "Packed & ready for pickup", icon: Package },
   { key: "ON_THE_WAY", label: "On the Way", sub: "Rider is delivering to you", icon: Truck },
   { key: "DELIVERED", label: "Delivered", sub: "Enjoy your delicious meal!", icon: CheckCircle2 },
 ];
 
+const getProgressByStatus = (status: OrderStatus): number => {
+  switch (status) {
+    case "PENDING": return 10;
+    case "PREPARING": return 30;
+    case "READY_FOR_PICKUP": return 50;
+    case "ACCEPTED_BY_RIDER": return 65;
+    case "ON_THE_WAY": return 80;
+    case "DELIVERED": return 100;
+    default: return 10;
+  }
+};
+
 export default function OrderTrackingView({ initialOrder }: OrderTrackingViewProps) {
   const [order, setOrder] = useState<Order>(initialOrder);
   const [currentStatus, setCurrentStatus] = useState<OrderStatus>(initialOrder.status);
-  const [progressPercent, setProgressPercent] = useState<number>(() => {
-    switch (initialOrder.status) {
-      case "PENDING": return 10;
-      case "PREPARING": return 25;
-      case "ACCEPTED_BY_RIDER": return 45;
-      case "ON_THE_WAY": return 70;
-      case "DELIVERED": return 100;
-      default: return 15;
-    }
-  });
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const [progressPercent, setProgressPercent] = useState<number>(() =>
+    getProgressByStatus(initialOrder.status)
+  );
 
   // Call & Chat Modal State
   const [activeModal, setActiveModal] = useState<"CALL" | "CHAT" | null>(null);
@@ -71,12 +80,9 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
   ]);
   const [newMessage, setNewMessage] = useState("");
 
-  // Demo auto-simulation state
-  const [isAutoSimulating, setIsAutoSimulating] = useState(false);
-
   // 🚀 Real-time Polling: Check backend every 3 seconds for updated order & rider info
   useEffect(() => {
-    if (isAutoSimulating) return;
+    if (currentStatus === "CANCELLED") return;
 
     const fetchLatestOrder = async () => {
       try {
@@ -85,15 +91,7 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
           const latest: Order = await res.json();
           setOrder(latest);
           setCurrentStatus(latest.status);
-
-          // Update progress percentage according to actual database status
-          switch (latest.status) {
-            case "PENDING": setProgressPercent(10); break;
-            case "PREPARING": setProgressPercent(25); break;
-            case "ACCEPTED_BY_RIDER": setProgressPercent(45); break;
-            case "ON_THE_WAY": setProgressPercent(70); break;
-            case "DELIVERED": setProgressPercent(100); break;
-          }
+          setProgressPercent(getProgressByStatus(latest.status));
         }
       } catch (err) {
         // quiet fail
@@ -102,78 +100,78 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
 
     const interval = setInterval(fetchLatestOrder, 3000);
     return () => clearInterval(interval);
-  }, [order.id, isAutoSimulating]);
+  }, [order.id, currentStatus]);
 
   const stageIndex = useMemo(() => {
-    const idx = STAGES.findIndex((s) => s.key === currentStatus);
-    return idx === -1 ? 0 : idx;
+    switch (currentStatus) {
+      case "PENDING":
+        return 0;
+      case "PREPARING":
+        return 1;
+      case "READY_FOR_PICKUP":
+      case "ACCEPTED_BY_RIDER":
+        return 2;
+      case "ON_THE_WAY":
+        return 3;
+      case "DELIVERED":
+        return 4;
+      default:
+        return 0;
+    }
   }, [currentStatus]);
 
   // Sync ETA based on stage
   const etaText = useMemo(() => {
     switch (currentStatus) {
-      case "PENDING": return "Order Received • Waiting for kitchen confirmation";
-      case "PREPARING": return "Kitchen Preparing • Food is being freshly cooked";
-      case "ACCEPTED_BY_RIDER": return "Rider Assigned • Heading to restaurant for pickup";
-      case "ON_THE_WAY": return "Out for Delivery • Arriving in ~10-15 mins";
-      case "DELIVERED": return "Order Delivered Successfully! 🎉";
-      default: return "Estimated Arrival: ~25 mins";
+      case "CANCELLED":
+        return "Order Cancelled";
+      case "PENDING":
+        return "Order Placed • Waiting for restaurant confirmation";
+      case "PREPARING":
+        return "Kitchen Preparing • Food is being freshly cooked 👨‍🍳";
+      case "READY_FOR_PICKUP":
+        return order.rider
+          ? `Food Ready & Packed • ${order.rider.name} heading for pickup 📦`
+          : "Food Ready & Packed • Waiting for nearby rider pickup 📦";
+      case "ACCEPTED_BY_RIDER":
+        return `Rider Assigned • ${order.rider?.name || "Rider"} heading to restaurant 🏍️`;
+      case "ON_THE_WAY":
+        return "Out for Delivery • Arriving in ~10-15 mins 🛵";
+      case "DELIVERED":
+        return "Order Delivered Successfully! 🎉";
+      default:
+        return "Estimated Arrival: ~25 mins";
     }
-  }, [currentStatus]);
+  }, [currentStatus, order.rider]);
 
-  // Update order status on backend & sync state
-  const updateStatus = async (newStatus: OrderStatus) => {
-    setCurrentStatus(newStatus);
+  const isOnlinePayment = order.paymentMethod && order.paymentMethod !== "COD";
+
+  // 🚀 Customer Cancel Order Action
+  const handleCustomerCancelOrder = async () => {
+    const confirmMessage = isOnlinePayment
+      ? `Are you sure you want to cancel this order?\n\nSince this order was paid online via ${order.paymentMethod}, an automated instant refund of ৳${order.totalAmount} will be immediately credited to your account.`
+      : "Are you sure you want to cancel this Cash on Delivery order?";
+
+    if (!confirm(confirmMessage)) return;
+
+    setIsCancelling(true);
     try {
-      const res = await fetch(`/api/orders/${order.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+      const res = await fetch(`/api/orders/${order.id}/cancel`, {
+        method: "POST",
       });
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
-        setOrder(data.order);
+        setCurrentStatus("CANCELLED");
+        setOrder((prev) => ({ ...prev, status: "CANCELLED" }));
+      } else {
+        alert(data.message || "Failed to cancel order.");
       }
     } catch (err) {
-      console.error("Status update error:", err);
+      console.error("Cancel order error:", err);
+      alert("Something went wrong while cancelling order.");
+    } finally {
+      setIsCancelling(false);
     }
-  };
-
-  // Demo Controls
-  const handleNextStage = () => {
-    const nextIdx = (stageIndex + 1) % STAGES.length;
-    const nextStage = STAGES[nextIdx].key;
-    const nextProgress = ((nextIdx + 1) / STAGES.length) * 100;
-    setProgressPercent(nextProgress);
-    updateStatus(nextStage);
-  };
-
-  const handleResetDemo = () => {
-    setIsAutoSimulating(false);
-    setProgressPercent(10);
-    updateStatus("PREPARING");
-  };
-
-  const handleStartAutoSimulation = () => {
-    setIsAutoSimulating(true);
-    let progress = 15;
-    updateStatus("PREPARING");
-
-    const interval = setInterval(() => {
-      progress += 2;
-      setProgressPercent(progress);
-
-      if (progress >= 35 && progress < 45) {
-        setCurrentStatus("ACCEPTED_BY_RIDER");
-      } else if (progress >= 45 && progress < 95) {
-        setCurrentStatus("ON_THE_WAY");
-      } else if (progress >= 98) {
-        setProgressPercent(100);
-        updateStatus("DELIVERED");
-        setIsAutoSimulating(false);
-        clearInterval(interval);
-      }
-    }, 500);
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -189,6 +187,102 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
     }, 1200);
   };
 
+  // 🚀 If order is CANCELLED, render clear cancellation view
+  if (currentStatus === "CANCELLED") {
+    return (
+      <div className="min-h-screen bg-slate-50 font-sans pb-28 pt-20">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          
+          <div className="mb-6 flex items-center justify-between">
+            <Link
+              href="/orders"
+              className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm border border-slate-200 transition hover:bg-orange-50 hover:text-orange-600"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to My Orders
+            </Link>
+          </div>
+
+          <div className="rounded-3xl border border-rose-200 bg-white p-8 sm:p-12 shadow-xl shadow-rose-500/5 space-y-6 text-center animate-in fade-in zoom-in-95">
+            
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-rose-100 text-rose-600 shadow-lg shadow-rose-200">
+              <XCircle className="h-10 w-10" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="rounded-full bg-rose-100 text-rose-800 px-3 py-1 text-xs font-black uppercase tracking-wider">
+                Order Cancelled
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900">
+                This Order has been Cancelled
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+                Order #{order.id.slice(0, 8)} from {order.restaurant?.name || "the restaurant"} has been cancelled.
+              </p>
+            </div>
+
+            {/* Refund / COD Notice Box */}
+            <div className="rounded-2xl bg-slate-50 p-5 border border-slate-200 text-left max-w-lg mx-auto space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
+                <span className="text-xs font-bold text-slate-500">Payment Status</span>
+                <span className="text-xs font-black text-slate-900">
+                  {isOnlinePayment ? `Online (${order.paymentMethod})` : "Cash on Delivery"}
+                </span>
+              </div>
+
+              {isOnlinePayment ? (
+                <div className="flex items-start gap-3 text-xs font-bold text-emerald-800 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                  <CreditCard className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <div>
+                    <p className="font-black text-emerald-900">Automated Refund Initiated!</p>
+                    <p className="text-[11px] text-emerald-700 font-medium mt-0.5">
+                      Your payment of <strong>৳{order.totalAmount}</strong> has been auto-refunded to your {order.paymentMethod} account.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3 text-xs font-medium text-slate-700 bg-slate-100 p-3 rounded-xl">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-slate-500 mt-0.5" />
+                  <span>No payment was charged since this was a Cash on Delivery order.</span>
+                </div>
+              )}
+            </div>
+
+            {/* Order Items Recap */}
+            <div className="max-w-lg mx-auto rounded-2xl border border-slate-100 p-4 text-left divide-y divide-slate-100">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                Cancelled Items:
+              </span>
+              {order.orderItems?.map((item) => (
+                <div key={item.id} className="flex justify-between py-2 text-xs font-medium text-slate-700">
+                  <span>{item.quantity}x {item.menuItem?.name || "Dish"}</span>
+                  <span className="font-mono text-slate-900">৳{(item.menuItem?.price || 0) * item.quantity}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-600 px-6 py-3.5 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-orange-600/30 transition hover:bg-orange-700"
+              >
+                <ShoppingBag className="h-4 w-4" />
+                <span>Explore Other Restaurants</span>
+              </Link>
+              <Link
+                href="/orders"
+                className="inline-flex items-center justify-center rounded-2xl bg-slate-100 px-6 py-3.5 text-xs font-bold text-slate-700 transition hover:bg-slate-200"
+              >
+                View Order History
+              </Link>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-28 pt-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -202,12 +296,30 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
             <ArrowLeft className="h-4 w-4" /> Back to My Orders
           </Link>
 
-          <div className="flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-xs font-black text-emerald-700 border border-emerald-200">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
-            <span>LIVE GPS TRACKING</span>
+          <div className="flex items-center gap-3">
+            {/* 🚀 Cancel Order Button for Customer when PENDING */}
+            {currentStatus === "PENDING" && (
+              <button
+                onClick={handleCustomerCancelOrder}
+                disabled={isCancelling}
+                className="inline-flex items-center gap-1.5 rounded-2xl bg-rose-50 px-4 py-2 text-xs font-black text-rose-600 border border-rose-200 transition hover:bg-rose-100 active:scale-95 disabled:opacity-50"
+              >
+                {isCancelling ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <XCircle className="h-3.5 w-3.5" />
+                )}
+                <span>Cancel Order</span>
+              </button>
+            )}
+
+            <div className="flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-xs font-black text-emerald-700 border border-emerald-200">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span>LIVE GPS TRACKING</span>
+            </div>
           </div>
         </div>
 
@@ -298,10 +410,16 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
                   className={`rounded-full px-3 py-1 text-[11px] font-bold border ${
                     order.rider
                       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : currentStatus === "PENDING"
+                      ? "bg-slate-100 text-slate-600 border-slate-200"
                       : "bg-amber-50 text-amber-700 border-amber-200 animate-pulse"
                   }`}
                 >
-                  {order.rider ? "Rider Assigned" : "Searching Rider"}
+                  {order.rider
+                    ? "Rider Assigned"
+                    : currentStatus === "PENDING"
+                    ? "Awaiting Kitchen"
+                    : "Searching Rider"}
                 </span>
               </div>
 
@@ -322,7 +440,11 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
                         {order.rider.name}
                       </h4>
                       <p className="text-xs font-bold text-slate-500">
-                        {order.rider.vehicleType || "Motorcycle"} • {order.rider.vehicleNumber || "Registration Verified"}
+                        {order.rider.vehicleType === "Motorcycle"
+                          ? `🏍️ Motorcycle • ${order.rider.vehicleNumber || "Verified"}`
+                          : order.rider.vehicleType === "Bicycle"
+                          ? "🚲 Bicycle Courier"
+                          : "🚶 Walker Courier"}
                       </p>
                       <div className="mt-1 flex items-center gap-1 text-xs font-black text-amber-500">
                         <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
@@ -349,6 +471,28 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
                     </button>
                   </div>
                 </>
+              ) : currentStatus === "PENDING" ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-5 text-center space-y-3">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+                    <Clock className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900">
+                      Waiting for kitchen confirmation
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      The restaurant is reviewing your order. Once accepted, cooking begins and nearby riders will be notified.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleCustomerCancelOrder}
+                    disabled={isCancelling}
+                    className="mt-2 w-full rounded-xl bg-rose-50 border border-rose-200 py-2.5 text-xs font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50"
+                  >
+                    {isCancelling ? "Cancelling..." : "Cancel Order"}
+                  </button>
+                </div>
               ) : (
                 <div className="rounded-2xl border-2 border-dashed border-amber-200 bg-amber-50/50 p-5 text-center space-y-3">
                   <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
@@ -359,7 +503,7 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
                       Looking for nearby delivery partner...
                     </h4>
                     <p className="text-[11px] text-slate-500 mt-1">
-                      As soon as the restaurant accepts and a rider claims your order, their live details and contact buttons will appear right here.
+                      As soon as a rider claims your order, their live details and contact buttons will appear right here.
                     </p>
                   </div>
                 </div>
@@ -399,46 +543,6 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
           </div>
         </div>
 
-      </div>
-
-      {/* 🚀 Presentation / Competition Showcase Demo Controller */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-slate-950/90 p-3 shadow-2xl backdrop-blur-md border border-white/20 text-white">
-          <div className="flex items-center gap-2 pl-3">
-            <span className="flex h-2.5 w-2.5 rounded-full bg-orange-500 animate-pulse"></span>
-            <span className="text-xs font-black tracking-wider uppercase text-orange-400">
-              Demo Mode Controller
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleNextStage}
-              disabled={isAutoSimulating}
-              className="flex items-center gap-1.5 rounded-2xl bg-orange-600 px-4 py-2 text-xs font-bold text-white shadow transition hover:bg-orange-500 active:scale-95 disabled:opacity-50"
-            >
-              <SkipForward className="h-3.5 w-3.5" />
-              <span>Next Stage ⏩</span>
-            </button>
-
-            <button
-              onClick={handleStartAutoSimulation}
-              disabled={isAutoSimulating}
-              className="flex items-center gap-1.5 rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow transition hover:bg-emerald-500 active:scale-95 disabled:opacity-50"
-            >
-              <Play className="h-3.5 w-3.5" />
-              <span>Auto Simulate 🚀</span>
-            </button>
-
-            <button
-              onClick={handleResetDemo}
-              className="flex items-center gap-1.5 rounded-2xl bg-slate-800 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-slate-700 transition"
-              title="Reset to Initial State"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Simulated Call Modal */}
