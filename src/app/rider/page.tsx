@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { User, Order, TodaySummary } from "../../types";
 import { triggerFireworks } from "../../lib/confetti";
+import { playDeliveryCompleteSound, playKitchenBellSound } from "../../lib/sound";
 
 // Dynamically import Rider Navigation Map
 const RiderNavigationMap = dynamic(
@@ -155,6 +156,7 @@ export default function RiderDashboardPage() {
       const data = await res.json();
 
       if (res.ok) {
+        playKitchenBellSound();
         setAvailableOrders((prev) => prev.filter((o) => o.id !== orderId));
         fetchRiderData(rider.id);
       } else {
@@ -185,7 +187,10 @@ export default function RiderDashboardPage() {
 
       if (res.ok) {
         if (status === "DELIVERED") {
+          playDeliveryCompleteSound();
           triggerFireworks();
+        } else {
+          playKitchenBellSound();
         }
         fetchRiderData(rider.id);
       } else {

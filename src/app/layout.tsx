@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import Navbar from "../components/common/Navbar";
 import CartDrawer from "../components/common/CartDrawer";
+import FoodieAIAssistant from "../components/ai/FoodieAIAssistant";
 
 export const metadata = {
 	title: "FoodDrop",
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
 				<Navbar />
 				<CartDrawer />
 				{children}
+				<FoodieAIAssistant />
 			</body>
 		</html>
 	);

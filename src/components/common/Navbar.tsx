@@ -3,13 +3,24 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Store, Bike, UserCircle, LogOut, Utensils, ShoppingBag, Package, MapPin } from "lucide-react";
+import { Store, Bike, UserCircle, LogOut, Utensils, ShoppingBag, Package, MapPin, Volume2, VolumeX } from "lucide-react";
 import { useCartStore } from "../../store/useCartStore";
 import { User } from "../../types";
+import { isSoundEnabled, toggleSoundEnabled } from "../../lib/sound";
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
+  const [soundOn, setSoundOn] = useState(true);
   const router = useRouter();
+
+  useEffect(() => {
+    setSoundOn(isSoundEnabled());
+  }, []);
+
+  const handleToggleSound = () => {
+    const next = toggleSoundEnabled();
+    setSoundOn(next);
+  };
 
   const cart = useCartStore((state) => state.cart);
   const openCart = useCartStore((state) => state.openCart);
@@ -197,6 +208,19 @@ export default function Navbar() {
               </button>
             </>
           )}
+
+          {/* 🔊 Audio / Sound Chimes Switcher */}
+          <button
+            onClick={handleToggleSound}
+            title={soundOn ? "Sensory Audio: ON (Click to Mute)" : "Sensory Audio: MUTED (Click to Enable)"}
+            className={`flex items-center justify-center rounded-xl p-2.5 transition active:scale-90 ${
+              soundOn
+                ? "bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200/80 shadow-xs"
+                : "bg-slate-100 text-slate-400 hover:bg-slate-200 border border-slate-200"
+            }`}
+          >
+            {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          </button>
 
         </div>
       </div>

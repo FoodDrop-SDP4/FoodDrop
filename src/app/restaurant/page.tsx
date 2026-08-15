@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState, useMemo } from "react";
 import {
   Plus,
   Utensils,
@@ -30,8 +30,16 @@ import {
   Bike,
   Sparkles,
   Percent,
+  Printer,
+  Download,
+  Calendar,
+  CreditCard,
+  Layers,
+  Award,
 } from "lucide-react";
 import { MenuItem, Order, Restaurant, RestaurantStats, CATEGORIES } from "../../types";
+import OrderReceiptModal from "../../components/orders/OrderReceiptModal";
+import { playKitchenBellSound, playCancelAlertSound } from "../../lib/sound";
 
 type RestaurantData = Restaurant & {
   orders: Order[];
@@ -45,6 +53,7 @@ export default function ProfessionalRestaurantDashboard() {
   const [ownerName, setOwnerName] = useState("");
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [restaurant, setRestaurant] = useState<RestaurantData | null>(null);
+  const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [stats, setStats] = useState<RestaurantStats>({
     totalRevenue: 0,
     totalOrders: 0,
@@ -270,6 +279,11 @@ export default function ProfessionalRestaurantDashboard() {
       });
 
       if (res.ok) {
+        if (newStatus === "CANCELLED") {
+          playCancelAlertSound();
+        } else {
+          playKitchenBellSound();
+        }
         fetchDashboardData(ownerId || undefined);
       } else {
         alert("Failed to update order status");
@@ -304,6 +318,131 @@ export default function ProfessionalRestaurantDashboard() {
       (item.category && item.category.toLowerCase().includes(q))
     );
   });
+
+  // 🏆 Analytics: Top Selling Dishes
+  const topSellingDishes = useMemo(() => {
+    const dishMap: Record<
+      string,
+      { name: string; category: string; price: number; quantity: number; revenue: number; imageUrl?: string }
+    > = {};
+
+    orders.forEach((o) => {
+      if (o.status !== "CANCELLED") {
+        o.orderItems.forEach((it) => {
+          const id = it.menuItemId || it.menuItem?.id || it.id || it.menuItem?.name || "item";
+          const name = it.menuItem?.name || "Dish";
+          const price = it.menuItem?.price || 0;
+          const cat = it.menuItem?.category || "General";
+          const img = it.menuItem?.imageUrl || undefined;
+
+          if (!dishMap[id]) {
+            dishMap[id] = { name, category: cat, price, quantity: 0, revenue: 0, imageUrl: img };
+          }
+          dishMap[id].quantity += it.quantity;
+          dishMap[id].revenue += price * it.quantity;
+        });
+      }
+    });
+
+    return Object.values(dishMap)
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 5);
+  }, [orders]);
+
+  // 💳 Analytics: Payment Method Breakdown
+  const paymentBreakdown = useMemo(() => {
+    let bkash = 0;
+    let nagad = 0;
+    let card = 0;
+    let cod = 0;
+
+    orders.forEach((o) => {
+      if (o.status !== "CANCELLED") {
+        const pm = (o.paymentMethod || "").toUpperCase();
+        if (pm.includes("BKASH")) bkash += o.totalAmount;
+        else if (pm.includes("NAGAD")) nagad += o.totalAmount;
+        else if (pm.includes("CARD")) card += o.totalAmount;
+        else cod += o.totalAmount;
+      }
+    });
+
+    const total = bkash + nagad + card + cod || 1;
+    return {
+      bkash: { amount: bkash, percent: Math.round((bkash / total) * 100) },
+      nagad: { amount: nagad, percent: Math.round((nagad / total) * 100) },
+      card: { amount: card, percent: Math.round((card / total) * 100) },
+      cod: { amount: cod, percent: Math.round((cod / total) * 100) },
+    };
+  }, [orders]);
+
+  // 📅 Analytics: Daily Trends (Last 7 Days)
+  const dailyTrends = useMemo(() => {
+    const days: { label: string; revenue: number; ordersCount: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+      const dayKey = d.toISOString().slice(0, 10);
+
+      const matchingOrders = orders.filter(
+        (o) => o.createdAt.slice(0, 10) === dayKey && o.status !== "CANCELLED"
+      );
+
+      const rev = matchingOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+      days.push({ label: dateStr, revenue: rev, ordersCount: matchingOrders.length });
+    }
+    return days;
+  }, [orders]);
+
+  // 📥 1-Click Export CSV Sales Report
+  const handleExportCSV = () => {
+    if (!orders || orders.length === 0) {
+      alert("No orders available to export.");
+      return;
+    }
+
+    const headers = [
+      "Order ID",
+      "Date & Time",
+      "Customer Name",
+      "Customer Phone",
+      "Items Count",
+      "Items Breakdown",
+      "Delivery Address",
+      "Total Amount (BDT)",
+      "Payment Method",
+      "Status",
+    ];
+
+    const rows = orders.map((o) => {
+      const itemsSummary = o.orderItems
+        .map((i) => `${i.quantity}x ${i.menuItem?.name || "Item"}`)
+        .join(" | ");
+
+      return [
+        `"${o.id.slice(0, 8)}"`,
+        `"${new Date(o.createdAt).toLocaleString("en-US")}"`,
+        `"${o.customer?.name || "Customer"}"`,
+        `"${o.contactPhone || o.customer?.phone || ""}"`,
+        `"${o.orderItems.length}"`,
+        `"${itemsSummary.replace(/"/g, '""')}"`,
+        `"${(o.deliveryAddress || "").replace(/"/g, '""')}"`,
+        `"${o.totalAmount}"`,
+        `"${o.paymentMethod || "CASH_ON_DELIVERY"}"`,
+        `"${o.status}"`,
+      ];
+    });
+
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.download = `FoodDrop_Sales_Report_${(restaurant?.name || "Kitchen").replace(/\s+/g, "_")}_${dateStr}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   // Calculate Form Discount Preview
   const numPrice = parseFloat(price) || 0;
@@ -668,7 +807,16 @@ export default function ProfessionalRestaurantDashboard() {
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="mt-5 pt-4 border-t border-slate-100 flex gap-2">
+                      <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-2">
+                        {/* 🖨️ KOT / POS Receipt Button for Kitchen Staff */}
+                        <button
+                          onClick={() => setReceiptOrder(order)}
+                          className="rounded-xl border border-slate-200 bg-slate-100 p-2.5 text-slate-700 hover:bg-slate-200 transition"
+                          title="Print Kitchen Order Ticket (KOT) / Receipt"
+                        >
+                          <Printer className="h-4 w-4" />
+                        </button>
+
                         {isPending && (
                           <>
                             <button
@@ -696,7 +844,7 @@ export default function ProfessionalRestaurantDashboard() {
                           <button
                             onClick={() => handleUpdateOrderStatus(order.id, "READY_FOR_PICKUP")}
                             disabled={actionLoadingId === order.id}
-                            className="w-full rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/30 transition hover:bg-blue-700 disabled:opacity-50"
+                            className="flex-1 rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/30 transition hover:bg-blue-700 disabled:opacity-50"
                           >
                             {actionLoadingId === order.id ? (
                               <Loader2 className="h-4 w-4 animate-spin mx-auto" />
@@ -707,19 +855,19 @@ export default function ProfessionalRestaurantDashboard() {
                         )}
 
                         {isReady && (
-                          <div className="w-full text-center py-2 text-xs font-bold text-blue-600 bg-blue-50 rounded-xl">
+                          <div className="flex-1 text-center py-2 text-xs font-bold text-blue-600 bg-blue-50 rounded-xl">
                             Waiting for Rider to Pick Up
                           </div>
                         )}
 
                         {isDelivered && (
-                          <div className="w-full text-center py-2 text-xs font-bold text-emerald-700 bg-emerald-50 rounded-xl">
+                          <div className="flex-1 text-center py-2 text-xs font-bold text-emerald-700 bg-emerald-50 rounded-xl">
                             ✓ Successfully Delivered
                           </div>
                         )}
 
                         {isCancelled && (
-                          <div className="w-full text-center py-2 text-xs font-bold text-rose-700 bg-rose-50 rounded-xl">
+                          <div className="flex-1 text-center py-2 text-xs font-bold text-rose-700 bg-rose-50 rounded-xl">
                             {isOnlinePayment ? "Cancelled • Auto-Refund Initiated" : "Cancelled • COD"}
                           </div>
                         )}
@@ -1030,40 +1178,251 @@ export default function ProfessionalRestaurantDashboard() {
             TAB 4: SALES ANALYTICS & REVENUE INSIGHTS
         ══════════════════════════════════════════════════════════════ */}
         {activeTab === "analytics" && (
-          <div className="rounded-3xl border border-slate-200/80 bg-white p-8 shadow-sm space-y-6 animate-in fade-in duration-200">
-            <div className="border-b border-slate-100 pb-4">
-              <h2 className="text-xl font-black text-slate-900">Kitchen Sales & Order Insights</h2>
-              <p className="text-xs text-slate-500 font-medium">
-                Live metrics tracked across customer order lifecycles.
-              </p>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-100">
-                <span className="text-xs font-bold text-emerald-800 uppercase block mb-1">Delivered Orders</span>
-                <span className="text-3xl font-black text-emerald-700">{deliveredOrders.length}</span>
-                <span className="text-xs text-emerald-600 block mt-1">Successfully fulfilled</span>
+          <div className="space-y-6 animate-in fade-in duration-200">
+            
+            {/* Top Banner & Export CSV Action */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl bg-slate-900 p-6 sm:p-8 text-white shadow-xl">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-600 font-black text-sm">
+                    📊
+                  </span>
+                  <h2 className="text-xl font-black">Kitchen Analytics & Business Intelligence</h2>
+                </div>
+                <p className="text-xs text-slate-400 mt-1 font-medium">
+                  Real-time sales velocity, revenue trends, top dishes, and accounting exports.
+                </p>
               </div>
 
-              <div className="p-5 rounded-2xl bg-orange-50 border border-orange-100">
-                <span className="text-xs font-bold text-orange-800 uppercase block mb-1">Active Pipeline</span>
-                <span className="text-3xl font-black text-orange-700">
+              <button
+                onClick={handleExportCSV}
+                className="flex items-center gap-2 rounded-2xl bg-orange-600 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-orange-600/30 transition hover:bg-orange-700 active:scale-95 shrink-0"
+              >
+                <Download className="h-4 w-4" />
+                <span>Export Sales Report (CSV)</span>
+              </button>
+            </div>
+
+            {/* 4 KPI Cards */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                  Gross Revenue
+                </span>
+                <span className="text-3xl font-black text-slate-900">
+                  ৳{stats.totalRevenue.toLocaleString()}
+                </span>
+                <span className="text-xs text-emerald-600 font-bold block mt-1">
+                  ✓ Verified Fulfilled Sales
+                </span>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                  Delivered Orders
+                </span>
+                <span className="text-3xl font-black text-emerald-700">
+                  {deliveredOrders.length}
+                </span>
+                <span className="text-xs text-slate-400 block mt-1">Total completed deliveries</span>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                  Active Pipeline
+                </span>
+                <span className="text-3xl font-black text-orange-600">
                   {pendingOrders.length + preparingOrders.length + readyOrders.length}
                 </span>
-                <span className="text-xs text-orange-600 block mt-1">Orders in progress</span>
+                <span className="text-xs text-orange-600 font-bold block mt-1">Orders in cooking/pickup</span>
               </div>
 
-              <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200">
-                <span className="text-xs font-bold text-slate-700 uppercase block mb-1">Average Order Value</span>
-                <span className="text-3xl font-black text-slate-900">
-                  ৳
-                  {deliveredOrders.length > 0
-                    ? Math.round(stats.totalRevenue / deliveredOrders.length)
-                    : 0}
+              <div className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                  Avg. Order Value (AOV)
                 </span>
-                <span className="text-xs text-slate-500 block mt-1">Per delivered basket</span>
+                <span className="text-3xl font-black text-blue-600">
+                  ৳{deliveredOrders.length > 0 ? Math.round(stats.totalRevenue / deliveredOrders.length) : 0}
+                </span>
+                <span className="text-xs text-slate-400 block mt-1">Per fulfilled basket</span>
               </div>
             </div>
+
+            {/* 📅 Daily Revenue Trends Chart (Last 7 Days) */}
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-orange-600" />
+                  <h3 className="text-sm font-black text-slate-900">7-Day Sales & Volume Trend</h3>
+                </div>
+                <span className="text-xs text-slate-400 font-medium">Daily Revenue in BDT</span>
+              </div>
+
+              {/* Visual Bars */}
+              <div className="grid grid-cols-7 gap-2 sm:gap-4 pt-4 items-end h-48">
+                {dailyTrends.map((d, idx) => {
+                  const maxRev = Math.max(...dailyTrends.map((x) => x.revenue), 100);
+                  const heightPercent = Math.max(8, Math.round((d.revenue / maxRev) * 100));
+
+                  return (
+                    <div key={idx} className="flex flex-col items-center gap-2 h-full justify-end group">
+                      <span className="text-[10px] font-bold text-slate-600 opacity-0 group-hover:opacity-100 transition">
+                        ৳{d.revenue}
+                      </span>
+                      <div
+                        style={{ height: `${heightPercent}%` }}
+                        className={`w-full max-w-[40px] rounded-xl transition-all duration-300 group-hover:scale-105 ${
+                          d.revenue > 0
+                            ? "bg-gradient-to-t from-orange-600 to-amber-500 shadow-md shadow-orange-500/20"
+                            : "bg-slate-100 border border-slate-200"
+                        }`}
+                      />
+                      <div className="text-center">
+                        <span className="text-[10px] font-black text-slate-700 block truncate max-w-[45px]">
+                          {d.label.split(",")[0]}
+                        </span>
+                        <span className="text-[9px] text-slate-400 block font-medium">
+                          {d.ordersCount} ord
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2-Column Grid: Top Sellers & Payment Methods */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              
+              {/* 🏆 Top Selling Dishes */}
+              <div className="rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-sm space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <Award className="h-4 w-4 text-amber-500" />
+                  <h3 className="text-sm font-black text-slate-900">Top-Selling Dishes Leaderboard</h3>
+                </div>
+
+                {topSellingDishes.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-6 text-center">
+                    No dish sales data yet. Incoming customer orders will rank here.
+                  </p>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {topSellingDishes.map((dish, i) => (
+                      <div key={i} className="flex items-center justify-between py-3">
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={`flex h-7 w-7 items-center justify-center rounded-xl font-black text-xs ${
+                              i === 0
+                                ? "bg-amber-100 text-amber-800 ring-2 ring-amber-300"
+                                : i === 1
+                                ? "bg-slate-200 text-slate-800"
+                                : i === 2
+                                ? "bg-amber-50 text-amber-700"
+                                : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            #{i + 1}
+                          </span>
+                          <div>
+                            <h4 className="text-xs font-bold text-slate-900">{dish.name}</h4>
+                            <p className="text-[10px] text-slate-400">{dish.category} • ৳{dish.price} each</p>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-xs font-black text-slate-900 block">
+                            {dish.quantity} sold
+                          </span>
+                          <span className="text-[10px] font-mono text-emerald-600 font-bold block">
+                            ৳{dish.revenue.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 💳 Payment Methods Breakdown */}
+              <div className="rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-sm space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <CreditCard className="h-4 w-4 text-blue-600" />
+                  <h3 className="text-sm font-black text-slate-900">Payment Channels & Methods</h3>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  {/* bKash */}
+                  <div>
+                    <div className="flex justify-between text-xs font-bold mb-1">
+                      <span className="text-pink-600 flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-pink-500" />
+                        bKash Online Payment
+                      </span>
+                      <span className="text-slate-800">৳{paymentBreakdown.bkash.amount} ({paymentBreakdown.bkash.percent}%)</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        style={{ width: `${paymentBreakdown.bkash.percent}%` }}
+                        className="h-full bg-pink-500 rounded-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Nagad */}
+                  <div>
+                    <div className="flex justify-between text-xs font-bold mb-1">
+                      <span className="text-amber-600 flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-amber-500" />
+                        Nagad Online
+                      </span>
+                      <span className="text-slate-800">৳{paymentBreakdown.nagad.amount} ({paymentBreakdown.nagad.percent}%)</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        style={{ width: `${paymentBreakdown.nagad.percent}%` }}
+                        className="h-full bg-amber-500 rounded-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Card */}
+                  <div>
+                    <div className="flex justify-between text-xs font-bold mb-1">
+                      <span className="text-blue-600 flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-blue-500" />
+                        Debit / Credit Card
+                      </span>
+                      <span className="text-slate-800">৳{paymentBreakdown.card.amount} ({paymentBreakdown.card.percent}%)</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        style={{ width: `${paymentBreakdown.card.percent}%` }}
+                        className="h-full bg-blue-500 rounded-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* COD */}
+                  <div>
+                    <div className="flex justify-between text-xs font-bold mb-1">
+                      <span className="text-slate-600 flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-slate-500" />
+                        Cash on Delivery (COD)
+                      </span>
+                      <span className="text-slate-800">৳{paymentBreakdown.cod.amount} ({paymentBreakdown.cod.percent}%)</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        style={{ width: `${paymentBreakdown.cod.percent}%` }}
+                        className="h-full bg-slate-500 rounded-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
           </div>
         )}
 
@@ -1220,6 +1579,13 @@ export default function ProfessionalRestaurantDashboard() {
           </div>
         </div>
       )}
+
+      {/* 🧾 Reusable Tax Invoice & POS Receipt Modal */}
+      <OrderReceiptModal
+        order={receiptOrder}
+        isOpen={Boolean(receiptOrder)}
+        onClose={() => setReceiptOrder(null)}
+      />
 
     </main>
   );

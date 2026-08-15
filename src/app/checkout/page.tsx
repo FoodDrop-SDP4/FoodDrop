@@ -28,6 +28,7 @@ import {
   PromoCode,
 } from "../../lib/promo";
 import { triggerConfetti, triggerFireworks } from "../../lib/confetti";
+import { playOrderSuccessSound } from "../../lib/sound";
 import PaymentGatewayModal, {
   PaymentGatewayType,
 } from "../../components/checkout/PaymentGatewayModal";
@@ -194,6 +195,7 @@ export default function CheckoutPage() {
         clearCart();
         setPlacedOrderId(data.order?.id || null);
         setOrderPlaced(true);
+        playOrderSuccessSound();
         triggerFireworks();
       } else {
         const data = await res.json();
