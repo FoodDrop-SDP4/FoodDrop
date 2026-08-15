@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, Utensils } from "lucide-react";
 import { MenuItem, CATEGORIES } from "../types";
 import HeroSearch from "../components/home/HeroSearch";
@@ -8,12 +9,33 @@ import CategoryFilter from "../components/food/CategoryFilter";
 import FoodCard from "../components/food/FoodCard";
 
 export default function CustomerHomepage() {
+  const router = useRouter();
   const [foods, setFoods] = useState<MenuItem[]>([]);
   const [filteredFoods, setFilteredFoods] = useState<MenuItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [suggestions, setSuggestions] = useState<MenuItem[]>([]);
+
+  // 🚀 Fast client-side hydration check for Riders & Restaurant Owners
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        const user = JSON.parse(stored);
+        if (user.role === "RIDER") {
+          router.replace("/rider");
+          return;
+        }
+        if (user.role === "RESTAURANT_OWNER") {
+          router.replace("/restaurant");
+          return;
+        }
+      }
+    } catch (e) {
+      // quiet
+    }
+  }, [router]);
 
   // Fetch foods from API
   useEffect(() => {
