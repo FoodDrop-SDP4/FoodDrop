@@ -10,6 +10,7 @@ import {
   MapPin,
   Star,
   Bike,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { Order, OrderStatus } from "../../types";
@@ -17,6 +18,7 @@ import { Order, OrderStatus } from "../../types";
 interface OrderCardProps {
   order: Order;
   onOpenReviewModal: (order: Order) => void;
+  onCancelOrder?: (order: Order) => void;
 }
 
 const statusConfig: Record<
@@ -67,7 +69,11 @@ const statusConfig: Record<
   },
 };
 
-export default function OrderCard({ order, onOpenReviewModal }: OrderCardProps) {
+export default function OrderCard({
+  order,
+  onOpenReviewModal,
+  onCancelOrder,
+}: OrderCardProps) {
   const currentStatus = statusConfig[order.status] || statusConfig.PENDING;
   const StatusIcon = currentStatus.icon;
 
@@ -78,6 +84,9 @@ export default function OrderCard({ order, onOpenReviewModal }: OrderCardProps) 
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  const isActiveOrder =
+    order.status !== "DELIVERED" && order.status !== "CANCELLED";
 
   return (
     <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm transition-all hover:shadow-md">
@@ -130,7 +139,7 @@ export default function OrderCard({ order, onOpenReviewModal }: OrderCardProps) 
           ))}
         </div>
 
-        {/* Footer info & Review Action */}
+        {/* Footer info & Actions */}
         <div className="pt-4 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <MapPin className="h-4 w-4 text-slate-400 shrink-0" />
@@ -143,22 +152,44 @@ export default function OrderCard({ order, onOpenReviewModal }: OrderCardProps) 
               <span className="text-base font-black text-slate-900">৳{order.totalAmount}</span>
             </div>
 
-            <Link
-              href={`/orders/${order.id}/track`}
-              className="flex items-center gap-1.5 rounded-2xl bg-orange-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-orange-600/20 transition hover:bg-orange-700 active:scale-95"
-            >
-              <Truck className="h-3.5 w-3.5" />
-              <span>Track Live on Map 🗺️</span>
-            </Link>
+            {/* 🚀 Show Live Tracking button ONLY for active ongoing orders */}
+            {isActiveOrder && (
+              <Link
+                href={`/orders/${order.id}/track`}
+                className="flex items-center gap-1.5 rounded-2xl bg-orange-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-orange-600/20 transition hover:bg-orange-700 active:scale-95"
+              >
+                <Truck className="h-3.5 w-3.5" />
+                <span>Track Live on Map 🗺️</span>
+              </Link>
+            )}
 
+            {/* Customer can cancel only if PENDING (before restaurant starts cooking) */}
+            {order.status === "PENDING" && onCancelOrder && (
+              <button
+                onClick={() => onCancelOrder(order)}
+                className="flex items-center gap-1 rounded-2xl bg-rose-50 px-3.5 py-2.5 text-xs font-bold text-rose-600 border border-rose-200 transition hover:bg-rose-100 active:scale-95"
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                <span>Cancel Order</span>
+              </button>
+            )}
+
+            {/* Delivered actions */}
             {order.status === "DELIVERED" && (
               <button
                 onClick={() => onOpenReviewModal(order)}
-                className="flex items-center gap-1.5 rounded-2xl bg-orange-50 px-4 py-2.5 text-xs font-bold text-orange-600 transition hover:bg-orange-100 active:scale-95"
+                className="flex items-center gap-1.5 rounded-2xl bg-orange-50 px-4 py-2.5 text-xs font-bold text-orange-600 border border-orange-200 transition hover:bg-orange-100 active:scale-95"
               >
                 <Star className="h-3.5 w-3.5 fill-orange-500 text-orange-500" />
                 <span>Rate & Review</span>
               </button>
+            )}
+
+            {/* Cancelled notice */}
+            {order.status === "CANCELLED" && (
+              <span className="text-xs font-bold text-rose-500 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-100">
+                Cancelled • Auto-Refunded
+              </span>
             )}
           </div>
         </div>

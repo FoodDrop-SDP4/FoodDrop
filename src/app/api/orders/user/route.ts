@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
+import { getSessionUserFromRequest } from "../../../../lib/auth";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
+    let userId = searchParams.get("userId");
+
+    // If userId not provided in query param, read from session cookie
+    if (!userId) {
+      const session = await getSessionUserFromRequest(request);
+      if (session) {
+        userId = session.id;
+      }
+    }
 
     if (!userId) {
       return NextResponse.json({ message: "User ID is required" }, { status: 400 });
@@ -13,14 +22,21 @@ export async function GET(request: Request) {
     const orders = await prisma.order.findMany({
       where: { customerId: userId },
       include: {
-        restaurant: {
-          select: { name: true },
+        restaurant: true,
+        rider: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            vehicleType: true,
+            vehicleNumber: true,
+            rating: true,
+            totalReviews: true,
+          },
         },
         orderItems: {
           include: {
-            menuItem: {
-              select: { name: true, price: true, imageUrl: true },
-            },
+            menuItem: true,
           },
         },
       },
@@ -30,6 +46,9 @@ export async function GET(request: Request) {
     return NextResponse.json(orders, { status: 200 });
   } catch (error: any) {
     console.error("Error fetching user orders:", error);
-    return NextResponse.json({ message: error?.message || "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { message: error?.message || "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }

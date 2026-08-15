@@ -14,6 +14,7 @@ import {
   Package,
   Phone,
   Play,
+  Radar,
   RotateCcw,
   SkipForward,
   Star,
@@ -56,8 +57,8 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
     switch (initialOrder.status) {
       case "PENDING": return 10;
       case "PREPARING": return 25;
-      case "ACCEPTED_BY_RIDER": return 40;
-      case "ON_THE_WAY": return 65;
+      case "ACCEPTED_BY_RIDER": return 45;
+      case "ON_THE_WAY": return 70;
       case "DELIVERED": return 100;
       default: return 15;
     }
@@ -73,6 +74,36 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
   // Demo auto-simulation state
   const [isAutoSimulating, setIsAutoSimulating] = useState(false);
 
+  // 🚀 Real-time Polling: Check backend every 3 seconds for updated order & rider info
+  useEffect(() => {
+    if (isAutoSimulating) return;
+
+    const fetchLatestOrder = async () => {
+      try {
+        const res = await fetch(`/api/orders/${order.id}`);
+        if (res.ok) {
+          const latest: Order = await res.json();
+          setOrder(latest);
+          setCurrentStatus(latest.status);
+
+          // Update progress percentage according to actual database status
+          switch (latest.status) {
+            case "PENDING": setProgressPercent(10); break;
+            case "PREPARING": setProgressPercent(25); break;
+            case "ACCEPTED_BY_RIDER": setProgressPercent(45); break;
+            case "ON_THE_WAY": setProgressPercent(70); break;
+            case "DELIVERED": setProgressPercent(100); break;
+          }
+        }
+      } catch (err) {
+        // quiet fail
+      }
+    };
+
+    const interval = setInterval(fetchLatestOrder, 3000);
+    return () => clearInterval(interval);
+  }, [order.id, isAutoSimulating]);
+
   const stageIndex = useMemo(() => {
     const idx = STAGES.findIndex((s) => s.key === currentStatus);
     return idx === -1 ? 0 : idx;
@@ -81,10 +112,10 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
   // Sync ETA based on stage
   const etaText = useMemo(() => {
     switch (currentStatus) {
-      case "PENDING": return "Estimated Arrival: ~30-35 mins";
-      case "PREPARING": return "Estimated Arrival: ~20-25 mins";
-      case "ACCEPTED_BY_RIDER": return "Rider arriving at restaurant in ~5 mins";
-      case "ON_THE_WAY": return "Arriving in ~10-15 mins";
+      case "PENDING": return "Order Received • Waiting for kitchen confirmation";
+      case "PREPARING": return "Kitchen Preparing • Food is being freshly cooked";
+      case "ACCEPTED_BY_RIDER": return "Rider Assigned • Heading to restaurant for pickup";
+      case "ON_THE_WAY": return "Out for Delivery • Arriving in ~10-15 mins";
       case "DELIVERED": return "Order Delivered Successfully! 🎉";
       default: return "Estimated Arrival: ~25 mins";
     }
@@ -153,7 +184,7 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
     setTimeout(() => {
       setChatMessages((prev) => [
         ...prev,
-        "Rider: Got it! Reaching your location shortly.",
+        `${order.rider?.name || "Rider"}: Got it! Reaching your location shortly.`,
       ]);
     }, 1200);
   };
@@ -176,7 +207,7 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
             </span>
-            <span>LIVE TRACKING ACTIVE</span>
+            <span>LIVE GPS TRACKING</span>
           </div>
         </div>
 
@@ -257,58 +288,82 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
           {/* Right Col: Rider & Order Details Card */}
           <div className="space-y-6">
             
-            {/* Rider Card */}
+            {/* Rider Card - Real assigned rider OR searching state */}
             <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm space-y-5">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black uppercase tracking-wider text-slate-400">
-                  Assigned Rider
+                  Delivery Partner
                 </h3>
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 border border-emerald-200">
-                  On Duty
+                <span
+                  className={`rounded-full px-3 py-1 text-[11px] font-bold border ${
+                    order.rider
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200 animate-pulse"
+                  }`}
+                >
+                  {order.rider ? "Rider Assigned" : "Searching Rider"}
                 </span>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-md">
-                    <User className="h-8 w-8 text-orange-500" />
+              {order.rider ? (
+                <>
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-md">
+                        <User className="h-8 w-8 text-orange-500" />
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-orange-600 text-white shadow">
+                        <Bike className="h-3.5 w-3.5" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-lg font-black text-slate-900">
+                        {order.rider.name}
+                      </h4>
+                      <p className="text-xs font-bold text-slate-500">
+                        {order.rider.vehicleType || "Motorcycle"} • {order.rider.vehicleNumber || "Registration Verified"}
+                      </p>
+                      <div className="mt-1 flex items-center gap-1 text-xs font-black text-amber-500">
+                        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                        <span>{order.rider.rating || 4.9} ({order.rider.totalReviews || 120}+ Deliveries)</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-orange-600 text-white shadow">
-                    <Bike className="h-3.5 w-3.5" />
+
+                  {/* Action Buttons */}
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <button
+                      onClick={() => setActiveModal("CALL")}
+                      className="flex items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3 text-xs font-bold text-white shadow transition hover:bg-orange-600"
+                    >
+                      <Phone className="h-4 w-4" />
+                      Call Rider
+                    </button>
+                    <button
+                      onClick={() => setActiveModal("CHAT")}
+                      className="flex items-center justify-center gap-2 rounded-2xl bg-orange-50 py-3 text-xs font-bold text-orange-600 border border-orange-200 transition hover:bg-orange-100"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      Chat
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-2xl border-2 border-dashed border-amber-200 bg-amber-50/50 p-5 text-center space-y-3">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+                    <Radar className="h-6 w-6 animate-spin" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900">
+                      Looking for nearby delivery partner...
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      As soon as the restaurant accepts and a rider claims your order, their live details and contact buttons will appear right here.
+                    </p>
                   </div>
                 </div>
-
-                <div>
-                  <h4 className="text-lg font-black text-slate-900">
-                    {order.rider?.name || "Rakib Delivery Partner"}
-                  </h4>
-                  <p className="text-xs font-bold text-slate-500">
-                    {order.rider?.vehicleType || "Motorcycle"} • {order.rider?.vehicleNumber || "DHAKA-HA-1234"}
-                  </p>
-                  <div className="mt-1 flex items-center gap-1 text-xs font-black text-amber-500">
-                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                    <span>4.9 (140+ Deliveries)</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <button
-                  onClick={() => setActiveModal("CALL")}
-                  className="flex items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3 text-xs font-bold text-white shadow transition hover:bg-orange-600"
-                >
-                  <Phone className="h-4 w-4" />
-                  Call Rider
-                </button>
-                <button
-                  onClick={() => setActiveModal("CHAT")}
-                  className="flex items-center justify-center gap-2 rounded-2xl bg-orange-50 py-3 text-xs font-bold text-orange-600 border border-orange-200 transition hover:bg-orange-100"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  Chat
-                </button>
-              </div>
+              )}
             </div>
 
             {/* Order Items Breakdown */}
@@ -394,10 +449,10 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
               <Phone className="h-10 w-10" />
             </div>
             <div>
-              <h3 className="text-xl font-black">Calling Rider...</h3>
-              <p className="text-xs text-slate-400 mt-1 font-mono">+880 1744-444444</p>
+              <h3 className="text-xl font-black">Calling {order.rider?.name || "Rider"}...</h3>
+              <p className="text-xs text-slate-400 mt-1 font-mono">{order.rider?.phone || "+880 1744-444444"}</p>
               <p className="text-xs text-orange-400 font-bold mt-2">
-                "Hello, I am near your building gate!"
+                "Hello, I am near your delivery location!"
               </p>
             </div>
             <button
@@ -420,7 +475,7 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
                   <Bike className="h-4 w-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold">Rider Chat</h4>
+                  <h4 className="text-sm font-bold">{order.rider?.name || "Rider"} Chat</h4>
                   <p className="text-[10px] text-emerald-400">Online • On the move</p>
                 </div>
               </div>
@@ -446,7 +501,7 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
                         : "bg-white text-slate-800 shadow-sm border border-slate-200 rounded-bl-none"
                     }`}
                   >
-                    {msg.replace("You: ", "").replace("Rider: ", "")}
+                    {msg.replace("You: ", "").replace(`${order.rider?.name || "Rider"}: `, "")}
                   </div>
                 </div>
               ))}
@@ -456,7 +511,7 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
             <form onSubmit={handleSendMessage} className="p-3 border-t bg-white flex gap-2">
               <input
                 type="text"
-                placeholder="Type a message to rider..."
+                placeholder={`Type a message to ${order.rider?.name || "rider"}...`}
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs outline-none focus:border-orange-500"

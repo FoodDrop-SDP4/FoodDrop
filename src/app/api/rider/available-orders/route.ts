@@ -5,9 +5,9 @@ export async function GET() {
   try {
     const availableOrders = await prisma.order.findMany({
       where: {
-        riderId: null, // যেসব অর্ডারে রাইডার এখনো খালি
+        riderId: null, // Unclaimed orders
         status: {
-          in: ["PREPARING", "READY_FOR_PICKUP", "PENDING"],
+          in: ["PREPARING", "READY_FOR_PICKUP"], // Only after restaurant has accepted & started preparing
         },
       },
       include: {

@@ -174,7 +174,12 @@ export default function ProfessionalRestaurantDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId, status: newStatus }),
       });
-      if (res.ok) fetchDashboardData(ownerId || undefined);
+      if (res.ok) {
+        if (newStatus === "CANCELLED") {
+          alert("Order declined. If the customer paid online via bKash/Nagad/Card, an automated refund has been initiated to their account.");
+        }
+        fetchDashboardData(ownerId || undefined);
+      }
     } finally {
       setActionLoadingId(null);
     }
