@@ -16,9 +16,9 @@ export async function POST(request: Request) {
     const updatedOrder = await prisma.order.updateMany({
       where: {
         id: orderId,
-        riderId: null, // যদি আগে কোনো রাইডার এটি এক্সেপ্ট না করে থাকে
+        riderId: null, // Ensure order hasn't been claimed yet
         status: {
-          in: ["PREPARING", "READY_FOR_PICKUP", "PENDING"],
+          in: ["PREPARING", "READY_FOR_PICKUP"],
         },
       },
       data: {

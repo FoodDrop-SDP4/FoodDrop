@@ -90,7 +90,7 @@ export default function RiderRegisterPage() {
   return (
     <main className="min-h-screen bg-slate-50 font-sans pt-24 pb-16">
       <div className="mx-auto max-w-xl px-6">
-        
+
         <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-orange-600 mb-6 transition">
           <ArrowLeft className="h-4 w-4" /> Back to Home
         </Link>
@@ -111,7 +111,7 @@ export default function RiderRegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            
+
             {/* Full Name */}
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">Full Name</label>
@@ -186,11 +186,10 @@ export default function RiderRegisterPage() {
                     type="button"
                     key={type}
                     onClick={() => setFormData({ ...formData, vehicleType: type })}
-                    className={`rounded-2xl border py-2.5 text-xs font-bold transition ${
-                      formData.vehicleType === type
+                    className={`rounded-2xl border py-2.5 text-xs font-bold transition ${formData.vehicleType === type
                         ? "border-orange-600 bg-orange-600 text-white shadow-md shadow-orange-200"
                         : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
-                    }`}
+                      }`}
                   >
                     {type === "Motorcycle" ? "🏍️ Bike" : type === "Bicycle" ? "🚲 Cycle" : "🚶 Walk"}
                   </button>

@@ -5,7 +5,7 @@ import { verifySessionToken } from "./lib/auth";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Exclude public registration paths from role checks
+  // 1. Exclude public registration paths and static assets from role checks
   if (
     pathname === "/restaurant/register" ||
     pathname === "/rider/register" ||
@@ -22,7 +22,18 @@ export async function middleware(request: NextRequest) {
   const loginRedirectUrl = new URL("/login", request.url);
   loginRedirectUrl.searchParams.set("redirect", pathname);
 
-  // 2. Protected Restaurant Owner Routes
+  // 2. 🚀 Industry Standard: If logged-in Rider or Restaurant Owner visits Home (/), route to their cockpit
+  if (pathname === "/") {
+    if (session?.role === "RIDER") {
+      return NextResponse.redirect(new URL("/rider", request.url));
+    }
+    if (session?.role === "RESTAURANT_OWNER") {
+      return NextResponse.redirect(new URL("/restaurant", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // 3. Protected Restaurant Owner Routes
   if (pathname.startsWith("/restaurant")) {
     if (!session) {
       return NextResponse.redirect(loginRedirectUrl);
@@ -33,7 +44,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 3. Protected Rider Routes
+  // 4. Protected Rider Routes
   if (pathname.startsWith("/rider")) {
     if (!session) {
       return NextResponse.redirect(loginRedirectUrl);
@@ -44,7 +55,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 4. Protected Customer & User Routes
+  // 5. Protected Customer & User Routes (Riders & Owners redirected to their portals)
   if (
     pathname.startsWith("/orders") ||
     pathname.startsWith("/checkout") ||
@@ -52,6 +63,12 @@ export async function middleware(request: NextRequest) {
   ) {
     if (!session) {
       return NextResponse.redirect(loginRedirectUrl);
+    }
+    if (session.role === "RIDER") {
+      return NextResponse.redirect(new URL("/rider", request.url));
+    }
+    if (session.role === "RESTAURANT_OWNER") {
+      return NextResponse.redirect(new URL("/restaurant", request.url));
     }
     return NextResponse.next();
   }
@@ -61,6 +78,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
     "/restaurant/:path*",
     "/rider/:path*",
     "/orders/:path*",

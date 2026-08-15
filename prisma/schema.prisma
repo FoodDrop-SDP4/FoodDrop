@@ -110,7 +110,7 @@ model Order {
   
   customerId   String
   restaurantId String
-  riderId      String?     // অর্ডার এক্সেপ্ট করার আগে ফাঁকা থাকবে
+  riderId      String?     // Order unassigned before rider acceptance
 
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt

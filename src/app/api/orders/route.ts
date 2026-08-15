@@ -8,6 +8,9 @@ export async function POST(request: Request) {
       customerId,
       restaurantId,
       deliveryAddress,
+      phone,
+      paymentMethod,
+      transactionId,
       items,
       totalAmount,
       deliveryFee,
@@ -51,11 +54,23 @@ export async function POST(request: Request) {
             email: `customer_${Date.now()}@demo.com`,
             password: "password123",
             role: "CUSTOMER",
-            phone: "01711111111",
+            phone: phone ? String(phone).trim() : "01711111111",
           },
         });
       }
       targetCustomerId = defaultCustomer.id;
+    }
+
+    // 🚀 If phone number is given at checkout, sync it immediately to the customer user profile
+    if (phone && targetCustomerId) {
+      try {
+        await prisma.user.update({
+          where: { id: targetCustomerId },
+          data: { phone: String(phone).trim() },
+        });
+      } catch (err) {
+        console.error("Failed to sync customer phone:", err);
+      }
     }
 
     const calculatedDeliveryFee =
@@ -90,11 +105,21 @@ export async function POST(request: Request) {
         restaurant: {
           select: { name: true, address: true },
         },
+        customer: {
+          select: { name: true, phone: true, email: true },
+        },
       },
     });
 
     return NextResponse.json(
-      { message: "Order placed successfully!", order: newOrder },
+      {
+        message: "Order placed successfully!",
+        order: {
+          ...newOrder,
+          paymentMethod: paymentMethod || "CASH_ON_DELIVERY",
+          transactionId: transactionId || undefined,
+        },
+      },
       { status: 201 }
     );
   } catch (error: any) {

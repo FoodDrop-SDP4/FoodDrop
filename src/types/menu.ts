@@ -17,6 +17,8 @@ export interface MenuItem {
   name: string;
   description: string | null;
   price: number;
+  originalPrice?: number | null;
+  discountPercent?: number | null;
   imageUrl: string | null;
   category?: string | null;
   isAvailable?: boolean;

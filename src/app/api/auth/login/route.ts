@@ -52,11 +52,22 @@ export async function POST(request: Request) {
       id: user.id,
       name: user.name,
       email: user.email,
+      phone: user.phone,
       role: user.role,
+      vehicleType: user.vehicleType,
+      vehicleNumber: user.vehicleNumber,
+      isOnline: user.isOnline,
+      rating: user.rating,
+      totalReviews: user.totalReviews,
     };
 
     // 🔒 Create signed JWT session token
-    const token = await createSessionToken(safeUser);
+    const token = await createSessionToken({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    });
 
     // Return safe user data with HTTP-only cookie
     const response = NextResponse.json(

@@ -26,6 +26,11 @@ export default function FoodCard({ food, onSelect }: FoodCardProps) {
     });
   };
 
+  const hasDiscount = Boolean(food.originalPrice && food.originalPrice > food.price);
+  const discountPercent = hasDiscount
+    ? Math.round((((food.originalPrice || 0) - food.price) / (food.originalPrice || 1)) * 100)
+    : 0;
+
   return (
     <div
       onClick={() => onSelect && onSelect(food)}
@@ -41,9 +46,24 @@ export default function FoodCard({ food, onSelect }: FoodCardProps) {
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
 
-        {/* Price Badge */}
-        <div className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1.5 text-xs font-black text-slate-900 shadow-sm backdrop-blur">
-          ৳{food.price}
+        {/* Price & Discount Badge */}
+        <div className="absolute left-3 top-3 flex items-center gap-1.5">
+          <div className="rounded-full bg-white/95 px-3 py-1.5 text-xs font-black text-slate-900 shadow-sm backdrop-blur flex items-center gap-1">
+            {hasDiscount && (
+              <span className="line-through text-slate-400 font-normal text-[11px]">
+                ৳{food.originalPrice}
+              </span>
+            )}
+            <span className={hasDiscount ? "text-rose-600 font-black" : "text-slate-900"}>
+              ৳{food.price}
+            </span>
+          </div>
+
+          {hasDiscount && (
+            <span className="rounded-full bg-rose-600 px-2.5 py-1 text-[11px] font-black text-white shadow-md shadow-rose-600/30">
+              🔥 {discountPercent}% OFF
+            </span>
+          )}
         </div>
 
         {/* Category Tag */}

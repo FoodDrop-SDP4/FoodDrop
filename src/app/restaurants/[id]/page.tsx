@@ -136,8 +136,20 @@ export default function RestaurantDetailPage({ params }: RestaurantDetailPagePro
                     <p className="text-xs text-slate-400 line-clamp-2 mt-1">
                       {item.description}
                     </p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="font-black text-orange-600 text-sm">৳{item.price}</span>
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      {item.originalPrice && item.originalPrice > item.price ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="line-through text-slate-400 text-xs font-normal">
+                            ৳{item.originalPrice}
+                          </span>
+                          <span className="font-black text-rose-600 text-sm">৳{item.price}</span>
+                          <span className="rounded-full bg-rose-100 text-rose-700 font-black text-[10px] px-1.5 py-0.5">
+                            {Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)}% OFF
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="font-black text-orange-600 text-sm">৳{item.price}</span>
+                      )}
                       {item.category && (
                         <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
                           {item.category}

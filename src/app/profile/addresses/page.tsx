@@ -19,18 +19,43 @@ export default function SavedAddressesPage() {
   const router = useRouter();
 
   const fetchAddresses = async () => {
+    let currentUser: any = null;
+
     const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
+    if (storedUser) {
+      try {
+        currentUser = JSON.parse(storedUser);
+      } catch (e) {
+        currentUser = null;
+      }
+    }
+
+    if (!currentUser) {
+      try {
+        const authRes = await fetch("/api/auth/me");
+        if (authRes.ok) {
+          const authData = await authRes.json();
+          if (authData.user) {
+            currentUser = authData.user;
+            localStorage.setItem("user", JSON.stringify(authData.user));
+          }
+        }
+      } catch (e) {
+        // quiet
+      }
+    }
+
+    if (!currentUser?.id) {
+      setIsLoading(false);
       router.push("/login?redirect=/profile/addresses");
       return;
     }
-    const user = JSON.parse(storedUser);
 
     try {
-      const res = await fetch(`/api/users/addresses?userId=${user.id}`);
+      const res = await fetch(`/api/users/addresses?userId=${currentUser.id}`);
       if (res.ok) {
         const data = await res.json();
-        setAddresses(data);
+        setAddresses(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error(err);

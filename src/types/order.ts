@@ -30,6 +30,9 @@ export interface Order {
   deliveryFee?: number;
   status: OrderStatus;
   deliveryAddress: string;
+  contactPhone?: string | null;
+  paymentMethod?: string | null;
+  transactionId?: string | null;
   customerId: string;
   restaurantId: string;
   riderId?: string | null;

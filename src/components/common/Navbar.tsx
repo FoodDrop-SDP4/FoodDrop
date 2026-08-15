@@ -67,12 +67,19 @@ export default function Navbar() {
     router.push("/");
   };
 
+  const homeHref =
+    user?.role === "RIDER"
+      ? "/rider"
+      : user?.role === "RESTAURANT_OWNER"
+      ? "/restaurant"
+      : "/";
+
   return (
     <nav className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/90 px-6 py-4 backdrop-blur-md md:px-12 font-sans">
       <div className="mx-auto flex max-w-7xl items-center justify-between">
         
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 text-2xl font-black tracking-tighter text-slate-900">
+        <Link href={homeHref} className="flex items-center gap-2 text-2xl font-black tracking-tighter text-slate-900">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-600 text-white shadow-md shadow-orange-200">
             <Utensils className="h-4 w-4" />
           </div>
