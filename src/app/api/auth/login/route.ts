@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
+import { createSessionToken, setSessionCookie } from "../../../../lib/auth";
 import bcrypt from "bcryptjs";
 
 export async function POST(request: Request) {
@@ -47,19 +48,27 @@ export async function POST(request: Request) {
       );
     }
 
-    // Return safe user data
-    return NextResponse.json(
+    const safeUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
+
+    // 🔒 Create signed JWT session token
+    const token = await createSessionToken(safeUser);
+
+    // Return safe user data with HTTP-only cookie
+    const response = NextResponse.json(
       {
         message: "Login successful!",
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
+        user: safeUser,
       },
       { status: 200 }
     );
+
+    setSessionCookie(response, token);
+    return response;
   } catch (error) {
     console.error("Login Error:", error);
     return NextResponse.json(

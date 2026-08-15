@@ -16,7 +16,21 @@ export default function Navbar() {
 
   const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  const syncUser = () => {
+  const syncUser = async () => {
+    try {
+      const res = await fetch("/api/auth/me");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          setUser(data.user);
+          localStorage.setItem("user", JSON.stringify(data.user));
+          return;
+        }
+      }
+    } catch (err) {
+      // Fallback to localStorage if offline
+    }
+
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
@@ -41,7 +55,12 @@ export default function Navbar() {
     };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {
+      console.error("Logout error:", e);
+    }
     localStorage.removeItem("user");
     setUser(null);
     window.dispatchEvent(new Event("user-state-change"));
