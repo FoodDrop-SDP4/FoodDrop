@@ -24,9 +24,11 @@ import {
   ShoppingBag,
   CreditCard,
   Loader2,
+  Navigation,
 } from "lucide-react";
 import { Order, OrderStatus } from "../../types";
 import OrderReceiptModal from "../orders/OrderReceiptModal";
+import ChatBox from "../chat/ChatBox";
 
 // Dynamic import for Leaflet map component (SSR: false)
 const LiveTrackingMap = dynamic(() => import("./LiveTrackingMap"), {
@@ -49,23 +51,42 @@ const STAGES: { key: OrderStatus; label: string; sub: string; icon: React.Elemen
   { key: "PENDING", label: "Order Placed", sub: "Waiting for restaurant", icon: Clock },
   { key: "PREPARING", label: "Cooking", sub: "Kitchen preparing food", icon: ChefHat },
   { key: "READY_FOR_PICKUP", label: "Food Ready", sub: "Packed & ready for pickup", icon: Package },
-  { key: "ON_THE_WAY", label: "On the Way", sub: "Rider is delivering to you", icon: Truck },
-  { key: "DELIVERED", label: "Delivered", sub: "Enjoy your delicious meal!", icon: CheckCircle2 },
+  { key: "ON_THE_WAY", label: "On the Way", sub: "Rider delivering", icon: Truck },
+  { key: "ARRIVED", label: "Arrived", sub: "Rider is at your door", icon: MapPin },
+  { key: "DELIVERED", label: "Delivered", sub: "Enjoy your meal!", icon: CheckCircle2 },
 ];
 
 const getProgressByStatus = (status: OrderStatus): number => {
   switch (status) {
     case "PENDING": return 10;
     case "PREPARING": return 30;
-    case "READY_FOR_PICKUP": return 50;
-    case "ACCEPTED_BY_RIDER": return 65;
-    case "ON_THE_WAY": return 80;
+    case "READY_FOR_PICKUP": return 45;
+    case "ACCEPTED_BY_RIDER": return 55;
+    case "ON_THE_WAY": return 70;
+    case "ARRIVED": return 90;
     case "DELIVERED": return 100;
     default: return 10;
   }
 };
 
+import { triggerFireworks } from "../../lib/confetti";
+import { useLanguage } from "../../lib/i18n/LanguageContext";
+
+// Function to calculate distance using Haversine formula
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c; // Distance in km
+}
+
 export default function OrderTrackingView({ initialOrder }: OrderTrackingViewProps) {
+  const { t } = useLanguage();
   const [order, setOrder] = useState<Order>(initialOrder);
   const [currentStatus, setCurrentStatus] = useState<OrderStatus>(initialOrder.status);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -77,10 +98,9 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
 
   // Call & Chat Modal State
   const [activeModal, setActiveModal] = useState<"CALL" | "CHAT" | null>(null);
-  const [chatMessages, setChatMessages] = useState<string[]>([
-    "Hello! I am on the way with your food.",
-  ]);
-  const [newMessage, setNewMessage] = useState("");
+  
+  // Real user for chat
+  const currentUser = { id: order.customerId, name: order.customer?.name || "Customer", role: "CUSTOMER" as const };
 
   // 🚀 Real-time Polling: Check backend every 3 seconds for updated order & rider info
   useEffect(() => {
@@ -94,6 +114,10 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
           setOrder(latest);
           setCurrentStatus(latest.status);
           setProgressPercent(getProgressByStatus(latest.status));
+          
+          if (latest.status === "DELIVERED" && currentStatus !== "DELIVERED") {
+            triggerFireworks();
+          }
         }
       } catch (err) {
         // quiet fail
@@ -115,8 +139,10 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
         return 2;
       case "ON_THE_WAY":
         return 3;
-      case "DELIVERED":
+      case "ARRIVED":
         return 4;
+      case "DELIVERED":
+        return 5;
       default:
         return 0;
     }
@@ -139,6 +165,8 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
         return `Rider Assigned • ${order.rider?.name || "Rider"} heading to restaurant 🏍️`;
       case "ON_THE_WAY":
         return "Out for Delivery • Arriving in ~10-15 mins 🛵";
+      case "ARRIVED":
+        return "Rider Arrived • Please collect your food! 📍";
       case "DELIVERED":
         return "Order Delivered Successfully! 🎉";
       default:
@@ -146,7 +174,7 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
     }
   }, [currentStatus, order.rider]);
 
-  const isOnlinePayment = order.paymentMethod && order.paymentMethod !== "COD";
+  const isOnlinePayment = false;
 
   // 🚀 Customer Cancel Order Action
   const handleCustomerCancelOrder = async () => {
@@ -176,17 +204,22 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
     }
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim()) return;
-    setChatMessages((prev) => [...prev, `You: ${newMessage.trim()}`]);
-    setNewMessage("");
-    setTimeout(() => {
-      setChatMessages((prev) => [
-        ...prev,
-        `${order.rider?.name || "Rider"}: Got it! Reaching your location shortly.`,
-      ]);
-    }, 1200);
+  const handleConfirmDelivery = async () => {
+    if (!confirm("Are you sure you have received the food?")) return;
+    
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "DELIVERED" }),
+      });
+      if (res.ok) {
+        setCurrentStatus("DELIVERED");
+        setOrder((prev) => ({ ...prev, status: "DELIVERED" }));
+      }
+    } catch (err) {
+      console.error("Failed to confirm delivery", err);
+    }
   };
 
   // 🚀 If order is CANCELLED, render clear cancellation view
@@ -405,6 +438,7 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
               deliveryAddress={order.deliveryAddress}
               progressPercent={progressPercent}
               status={currentStatus}
+              riderLocation={order.rider?.latitude && order.rider?.longitude ? { latitude: order.rider.latitude, longitude: order.rider.longitude } : null}
             />
           </div>
 
@@ -437,30 +471,29 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
               {order.rider ? (
                 <>
                   <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-md">
-                        <User className="h-8 w-8 text-orange-500" />
+                    {order.rider.profilePic ? (
+                      <img src={order.rider.profilePic} alt={order.rider.name} className="h-14 w-14 rounded-full object-cover shadow-sm" />
+                    ) : (
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-100 text-orange-600">
+                        <Bike className="h-7 w-7" />
                       </div>
-                      <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-orange-600 text-white shadow">
-                        <Bike className="h-3.5 w-3.5" />
-                      </div>
-                    </div>
-
+                    )}
                     <div>
-                      <h4 className="text-lg font-black text-slate-900">
+                      <h4 className="font-black text-slate-900 text-lg leading-tight">
                         {order.rider.name}
                       </h4>
-                      <p className="text-xs font-bold text-slate-500">
-                        {order.rider.vehicleType === "Motorcycle"
-                          ? `🏍️ Motorcycle • ${order.rider.vehicleNumber || "Verified"}`
-                          : order.rider.vehicleType === "Bicycle"
-                          ? "🚲 Bicycle Courier"
-                          : "🚶 Walker Courier"}
-                      </p>
-                      <div className="mt-1 flex items-center gap-1 text-xs font-black text-amber-500">
+                      <div className="flex items-center gap-2 mt-0.5 text-xs font-bold text-slate-500">
                         <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                        <span>{order.rider.rating || 4.9} ({order.rider.totalReviews || 120}+ Deliveries)</span>
+                        <span>{order.rider.rating?.toFixed(1) || "5.0"}</span>
+                        <span>•</span>
+                        <span>{order.rider.totalReviews || 0} Reviews</span>
                       </div>
+                      {order.rider.latitude && order.rider.longitude && (
+                        <div className="mt-1 text-xs font-bold text-emerald-600 flex items-center gap-1">
+                          <Navigation className="h-3 w-3 shrink-0" />
+                          {calculateDistance(order.rider.latitude, order.rider.longitude, 23.7937, 90.4043).toFixed(1)} km away
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -481,6 +514,21 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
                       Chat
                     </button>
                   </div>
+                  
+                  {currentStatus === "ARRIVED" && (
+                    <div className="mt-4 animate-bounce">
+                      <button
+                        onClick={handleConfirmDelivery}
+                        className="w-full flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-600"
+                      >
+                        <CheckCircle2 className="h-5 w-5" />
+                        Confirm Food Received
+                      </button>
+                      <p className="text-center text-[10px] text-slate-500 mt-2">
+                        Clicking this will mark the order as delivered and pay the rider.
+                      </p>
+                    </div>
+                  )}
                 </>
               ) : currentStatus === "PENDING" ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-5 text-center space-y-3">
@@ -579,68 +627,13 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
           </div>
         </div>
       )}
-
-      {/* Simulated Chat Modal */}
-      {activeModal === "CHAT" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white text-slate-900 shadow-2xl overflow-hidden flex flex-col h-[480px]">
-            <div className="flex items-center justify-between bg-slate-900 p-4 text-white">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-600 text-white font-bold text-xs">
-                  <Bike className="h-4 w-4" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold">{order.rider?.name || "Rider"} Chat</h4>
-                  <p className="text-[10px] text-emerald-400">Online • On the move</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setActiveModal(null)}
-                className="p-1.5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
-              {chatMessages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex ${msg.startsWith("You:") ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs font-medium ${
-                      msg.startsWith("You:")
-                        ? "bg-orange-600 text-white rounded-br-none"
-                        : "bg-white text-slate-800 shadow-sm border border-slate-200 rounded-bl-none"
-                    }`}
-                  >
-                    {msg.replace("You: ", "").replace(`${order.rider?.name || "Rider"}: `, "")}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Input */}
-            <form onSubmit={handleSendMessage} className="p-3 border-t bg-white flex gap-2">
-              <input
-                type="text"
-                placeholder={`Type a message to ${order.rider?.name || "rider"}...`}
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs outline-none focus:border-orange-500"
-              />
-              <button
-                type="submit"
-                className="rounded-xl bg-orange-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-orange-700 transition"
-              >
-                Send
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Real-time Chat Box */}
+      <ChatBox
+        orderId={order.id}
+        currentUser={currentUser}
+        isOpen={activeModal === "CHAT"}
+        onClose={() => setActiveModal(null)}
+      />
 
       {/* 🧾 Reusable Tax Invoice & POS Receipt Modal */}
       <OrderReceiptModal

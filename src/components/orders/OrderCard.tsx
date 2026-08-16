@@ -46,15 +46,21 @@ const statusConfig: Record<
   },
   READY_FOR_PICKUP: {
     label: "Ready for Pickup",
-    bg: "bg-purple-50 border-purple-200",
-    text: "text-purple-700",
+    bg: "bg-orange-50 border-orange-200",
+    text: "text-orange-700",
     icon: Package,
   },
   ON_THE_WAY: {
-    label: "On the Way",
-    bg: "bg-orange-50 border-orange-200",
-    text: "text-orange-700",
+    label: "Out for Delivery",
+    bg: "bg-emerald-50 border-emerald-200",
+    text: "text-emerald-700",
     icon: Truck,
+  },
+  ARRIVED: {
+    label: "Rider Arrived",
+    bg: "bg-emerald-100 border-emerald-300",
+    text: "text-emerald-800",
+    icon: MapPin,
   },
   DELIVERED: {
     label: "Delivered",

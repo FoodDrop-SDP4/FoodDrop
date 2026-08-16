@@ -22,6 +22,7 @@ enum OrderStatus {
   READY_FOR_PICKUP
   ACCEPTED_BY_RIDER
   ON_THE_WAY
+  ARRIVED
   DELIVERED
   CANCELLED
 }
@@ -41,15 +42,18 @@ model User {
   rating       Float    @default(5.0)   // Average Rating
   totalReviews Int      @default(0)     // Review Co
   nid         String?  // রাইডার ভেরিফিকেশনের জন্য
+  latitude    Float?   // GPS Latitude for real-time tracking
+  longitude   Float?   // GPS Longitude for real-time tracking
   addresses   Address[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relationships\
+  // Relationships
   restaurants Restaurant[]
   orders      Order[]      @relation("CustomerOrders")
   deliveries  Order[]      @relation("RiderDeliveries")
-  reviews Review[]
+  reviews     Review[]
+  messages    Message[]    @relation("SentMessages")
 }
 
 // 1.5 Pending Registration (OTP verification before creating a real user)
@@ -89,6 +93,7 @@ model MenuItem {
   name         String
   description  String?
   price        Float
+  originalPrice Float?     // Added for discount features
   imageUrl     String?
   category     String?     @default("Fast Food & Burger")
   isAvailable  Boolean     @default(true)
@@ -120,12 +125,14 @@ model Order {
   rider        User?       @relation("RiderDeliveries", fields: [riderId], references: [id])
   restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
   orderItems   OrderItem[]
+  messages     Message[]   @relation("OrderMessages")
 }
 
 // 5. Order Item (একটা অর্ডারে কী কী খাবার আছে)
 model OrderItem {
   id         String   @id @default(uuid())
   quantity   Int
+  price      Float    @default(0) // Added for accurate historical pricing/analytics
   orderId    String
   menuItemId String
 
@@ -161,4 +168,16 @@ model Review {
 
   menuItemId   String?
   menuItem     MenuItem?  @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+}
+
+// 7. Message Model (For order chat)
+model Message {
+  id        String   @id @default(uuid())
+  orderId   String
+  senderId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  order     Order    @relation("OrderMessages", fields: [orderId], references: [id], onDelete: Cascade)
+  sender    User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
 }

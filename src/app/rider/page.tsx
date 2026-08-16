@@ -11,6 +11,7 @@ import {
   Clock,
   MapPin,
   Phone,
+  MessageSquare,
   PackageCheck,
   Loader2,
   Store,
@@ -21,6 +22,8 @@ import Link from "next/link";
 import { User, Order, TodaySummary } from "../../types";
 import { triggerFireworks } from "../../lib/confetti";
 import { playDeliveryCompleteSound, playKitchenBellSound } from "../../lib/sound";
+import ChatBox from "../../components/chat/ChatBox";
+import { useLanguage } from "../../lib/i18n/LanguageContext";
 
 // Dynamically import Rider Navigation Map
 const RiderNavigationMap = dynamic(
@@ -37,10 +40,12 @@ const RiderNavigationMap = dynamic(
 );
 
 export default function RiderDashboardPage() {
+  const { t } = useLanguage();
   const router = useRouter();
   const [rider, setRider] = useState<User | null>(null);
   const [isOnline, setIsOnline] = useState(true);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
   const [todaySummary, setTodaySummary] = useState<TodaySummary>({ count: 0, earnings: 0 });
   const [isLoading, setIsLoading] = useState(true);
@@ -117,6 +122,47 @@ export default function RiderDashboardPage() {
     return () => clearInterval(interval);
   }, [isOnline, rider?.id]);
 
+  // Real-time GPS Tracking
+  useEffect(() => {
+    if (!isOnline || !rider?.id) return;
+
+    if (!navigator.geolocation) {
+      console.warn("Geolocation is not supported by this browser.");
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          await fetch("/api/rider/location", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              riderId: rider.id,
+              latitude,
+              longitude,
+            }),
+          });
+          // Update local state if needed
+          setRider((prev) => prev ? { ...prev, latitude, longitude } : null);
+        } catch (err) {
+          console.error("Failed to update location", err);
+        }
+      },
+      (error) => {
+        console.error("Geolocation error:", error.message);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 10000,
+        timeout: 10000,
+      }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [isOnline, rider?.id]);
+
   // Toggle Online/Offline
   const toggleOnlineStatus = async () => {
     if (!rider?.id) return;
@@ -186,9 +232,9 @@ export default function RiderDashboardPage() {
       });
 
       if (res.ok) {
-        if (status === "DELIVERED") {
+        if (status === "DELIVERED" || status === "ARRIVED") {
           playDeliveryCompleteSound();
-          triggerFireworks();
+          if (status === "DELIVERED") triggerFireworks();
         } else {
           playKitchenBellSound();
         }
@@ -202,6 +248,8 @@ export default function RiderDashboardPage() {
       setActionLoading(false);
     }
   };
+
+  const currentUser = rider ? { id: rider.id, name: rider.name, role: "RIDER" as const } : null;
 
   if (isLoading) {
     return (
@@ -375,18 +423,32 @@ export default function RiderDashboardPage() {
                 </button>
               ) : (
                 <button
-                  disabled={actionLoading}
-                  onClick={() => handleUpdateOrderStatus(activeOrder.id, "DELIVERED")}
-                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-4 text-xs font-black uppercase tracking-wider text-white shadow-xl shadow-emerald-600/30 transition hover:bg-emerald-700 active:scale-98 disabled:opacity-50"
+                  disabled={actionLoading || activeOrder.status === "ARRIVED"}
+                  onClick={() => handleUpdateOrderStatus(activeOrder.id, "ARRIVED")}
+                  className={`w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-xs font-black uppercase tracking-wider text-white shadow-xl transition active:scale-98 disabled:opacity-50 ${activeOrder.status === "ARRIVED" ? "bg-slate-500" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30"}`}
                 >
                   {actionLoading ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
                     <CheckCircle2 className="h-5 w-5" />
                   )}
-                  <span>At Customer Doorstep • Mark as Delivered ✅</span>
+                  <span>
+                    {activeOrder.status === "ARRIVED" 
+                      ? "Waiting for Customer Approval ⏳" 
+                      : "At Customer Doorstep • Request Approval 📍"}
+                  </span>
                 </button>
               )}
+            </div>
+            
+            <div className="mt-4 pt-4 border-t border-slate-100 flex gap-2">
+               <button
+                  onClick={() => setChatOpen(true)}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-orange-50 py-3 text-xs font-bold text-orange-600 border border-orange-200 transition hover:bg-orange-100"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Chat with Customer
+                </button>
             </div>
 
           </div>
@@ -447,6 +509,15 @@ export default function RiderDashboardPage() {
         )}
 
       </div>
+
+      {activeOrder && currentUser && (
+        <ChatBox
+          orderId={activeOrder.id}
+          currentUser={currentUser}
+          isOpen={chatOpen}
+          onClose={() => setChatOpen(false)}
+        />
+      )}
     </main>
   );
 }

@@ -35,10 +35,10 @@ export async function POST(
     });
 
     const isOnlinePayment =
-      order.paymentMethod && order.paymentMethod !== "CASH_ON_DELIVERY";
+      (order as any).paymentMethod && (order as any).paymentMethod !== "CASH_ON_DELIVERY";
 
     const message = isOnlinePayment
-      ? `Your order has been cancelled successfully. Since you paid online via ${order.paymentMethod}, an automated refund of ৳${order.totalAmount} has been initiated to your account.`
+      ? `Your order has been cancelled successfully. Since you paid online via ${(order as any).paymentMethod}, an automated refund of ৳${order.totalAmount} has been initiated to your account.`
       : "Your Cash on Delivery order has been cancelled successfully. No payment was charged.";
 
     return NextResponse.json(

@@ -36,10 +36,14 @@ import {
   CreditCard,
   Layers,
   Award,
+  MessageSquare,
 } from "lucide-react";
 import { MenuItem, Order, Restaurant, RestaurantStats, CATEGORIES } from "../../types";
 import OrderReceiptModal from "../../components/orders/OrderReceiptModal";
+import ChatBox from "../../components/chat/ChatBox";
 import { playKitchenBellSound, playCancelAlertSound } from "../../lib/sound";
+import { useLanguage } from "../../lib/i18n/LanguageContext";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 type RestaurantData = Restaurant & {
   orders: Order[];
@@ -50,6 +54,7 @@ type WorkspaceTab = "orders" | "menu" | "add-dish" | "analytics";
 type OrderFilter = "ALL" | "PENDING" | "PREPARING" | "READY_FOR_PICKUP" | "DELIVERED" | "CANCELLED";
 
 export default function ProfessionalRestaurantDashboard() {
+  const { t } = useLanguage();
   const [ownerName, setOwnerName] = useState("");
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [restaurant, setRestaurant] = useState<RestaurantData | null>(null);
@@ -68,6 +73,7 @@ export default function ProfessionalRestaurantDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [deletingFoodId, setDeletingFoodId] = useState<string | null>(null);
+  const [chatOpenId, setChatOpenId] = useState<string | null>(null);
 
   // Add Food Form States
   const [name, setName] = useState("");
@@ -816,6 +822,14 @@ export default function ProfessionalRestaurantDashboard() {
                         >
                           <Printer className="h-4 w-4" />
                         </button>
+                        
+                        <button
+                          onClick={() => setChatOpenId(order.id)}
+                          className="rounded-xl border border-orange-200 bg-orange-50 p-2.5 text-orange-600 hover:bg-orange-100 transition"
+                          title="Chat with Customer & Rider"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </button>
 
                         {isPending && (
                           <>
@@ -1259,35 +1273,15 @@ export default function ProfessionalRestaurantDashboard() {
               </div>
 
               {/* Visual Bars */}
-              <div className="grid grid-cols-7 gap-2 sm:gap-4 pt-4 items-end h-48">
-                {dailyTrends.map((d, idx) => {
-                  const maxRev = Math.max(...dailyTrends.map((x) => x.revenue), 100);
-                  const heightPercent = Math.max(8, Math.round((d.revenue / maxRev) * 100));
-
-                  return (
-                    <div key={idx} className="flex flex-col items-center gap-2 h-full justify-end group">
-                      <span className="text-[10px] font-bold text-slate-600 opacity-0 group-hover:opacity-100 transition">
-                        ৳{d.revenue}
-                      </span>
-                      <div
-                        style={{ height: `${heightPercent}%` }}
-                        className={`w-full max-w-[40px] rounded-xl transition-all duration-300 group-hover:scale-105 ${
-                          d.revenue > 0
-                            ? "bg-gradient-to-t from-orange-600 to-amber-500 shadow-md shadow-orange-500/20"
-                            : "bg-slate-100 border border-slate-200"
-                        }`}
-                      />
-                      <div className="text-center">
-                        <span className="text-[10px] font-black text-slate-700 block truncate max-w-[45px]">
-                          {d.label.split(",")[0]}
-                        </span>
-                        <span className="text-[9px] text-slate-400 block font-medium">
-                          {d.ordersCount} ord
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="pt-4 h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dailyTrends.map(d => ({ ...d, label: d.label.split(',')[0] }))}>
+                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(val) => `৳${val}`} />
+                    <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                    <Bar dataKey="revenue" fill="#ea580c" radius={[6, 6, 0, 0]} name={t("analytics_revenue", "Revenue")} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
 
@@ -1583,9 +1577,18 @@ export default function ProfessionalRestaurantDashboard() {
       {/* 🧾 Reusable Tax Invoice & POS Receipt Modal */}
       <OrderReceiptModal
         order={receiptOrder}
-        isOpen={Boolean(receiptOrder)}
+        isOpen={!!receiptOrder}
         onClose={() => setReceiptOrder(null)}
       />
+
+      {chatOpenId && ownerId && (
+        <ChatBox
+          orderId={chatOpenId}
+          currentUser={{ id: ownerId, name: ownerName, role: "RESTAURANT_OWNER" }}
+          isOpen={!!chatOpenId}
+          onClose={() => setChatOpenId(null)}
+        />
+      )}
 
     </main>
   );

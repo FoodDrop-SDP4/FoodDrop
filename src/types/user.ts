@@ -13,6 +13,8 @@ export interface User {
   rating?: number;
   totalReviews?: number;
   nid?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   createdAt?: string;
   updatedAt?: string;
 }

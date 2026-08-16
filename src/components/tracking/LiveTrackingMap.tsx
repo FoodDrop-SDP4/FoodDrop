@@ -2,12 +2,14 @@
 
 import { useEffect, useRef } from "react";
 import L from "leaflet";
+import { useLanguage } from "../../lib/i18n/LanguageContext";
 
 interface LiveTrackingMapProps {
   restaurantName: string;
   deliveryAddress: string;
   progressPercent: number; // 0 to 100
   status: string;
+  riderLocation?: { latitude: number; longitude: number } | null;
 }
 
 // Preset Dhaka locations for realistic navigation simulation
@@ -39,7 +41,9 @@ export default function LiveTrackingMap({
   deliveryAddress,
   progressPercent,
   status,
+  riderLocation,
 }: LiveTrackingMapProps) {
+  const { t } = useLanguage();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const riderMarkerRef = useRef<L.Marker | null>(null);
@@ -163,19 +167,31 @@ export default function LiveTrackingMap({
   }, [restaurantName, deliveryAddress, status]);
 
   // Update Rider position smoothly along route based on progress percentage
+  // Or use real-time GPS location if available
   useEffect(() => {
     if (!riderMarkerRef.current) return;
 
-    // Calculate current point along the route
-    const clampedProgress = Math.max(0, Math.min(100, progressPercent));
-    const index = Math.min(
-      routePoints.length - 1,
-      Math.floor((clampedProgress / 100) * (routePoints.length - 1))
-    );
+    if (riderLocation && riderLocation.latitude && riderLocation.longitude) {
+      // Use real GPS Location
+      const currentCoord: [number, number] = [riderLocation.latitude, riderLocation.longitude];
+      riderMarkerRef.current.setLatLng(currentCoord);
+      
+      // Auto-pan map to rider if they move significantly
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.setView(currentCoord, mapInstanceRef.current.getZoom(), { animate: true });
+      }
+    } else {
+      // Fallback: Calculate current point along the route
+      const clampedProgress = Math.max(0, Math.min(100, progressPercent));
+      const index = Math.min(
+        routePoints.length - 1,
+        Math.floor((clampedProgress / 100) * (routePoints.length - 1))
+      );
 
-    const currentCoord = routePoints[index];
-    riderMarkerRef.current.setLatLng(currentCoord);
-  }, [progressPercent]);
+      const currentCoord = routePoints[index];
+      riderMarkerRef.current.setLatLng(currentCoord);
+    }
+  }, [progressPercent, riderLocation, routePoints]);
 
   return (
     <div className="relative h-full w-full min-h-[380px] sm:min-h-[460px] overflow-hidden rounded-3xl border border-slate-200/80 shadow-inner">

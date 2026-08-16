@@ -5,39 +5,99 @@ import { Prisma } from '@prisma/client';
 const fallbackMenuItems = [
   {
     id: 'fallback-1',
-    name: 'Classic Burger',
-    description: 'Juicy grilled beef burger with fresh toppings.',
-    price: 320,
+    name: 'Special Mutton Kacchi Biryani',
+    description: 'Tender mutton pieces cooked with aromatic Basmati rice, soft potatoes, and authentic ghee.',
+    price: 340,
     originalPrice: 400,
-    imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80',
-    category: 'Fast Food & Burger',
-    isAvailable: true,
-    restaurantId: 'fallback-restaurant',
-    restaurant: { reviews: [] },
-  },
-  {
-    id: 'fallback-2',
-    name: 'Spicy Biryani',
-    description: 'Aromatic rice with tender meat and traditional spices.',
-    price: 450,
-    originalPrice: null,
     imageUrl: 'https://images.unsplash.com/photo-1633945274405-b6c8069047b0?auto=format&fit=crop&w=800&q=80',
     category: 'Biryani & Rice',
     isAvailable: true,
-    restaurantId: 'fallback-restaurant',
-    restaurant: { reviews: [] },
+    restaurantId: 'fallback-restaurant-1',
+    restaurant: { name: "Sultan's Dine & Cafe", reviews: [{ rating: 5 }] },
+  },
+  {
+    id: 'fallback-2',
+    name: 'Smokey BBQ Beef Burger',
+    description: 'Juicy beef patty topped with smoked BBQ sauce, melted cheddar cheese, and fresh lettuce.',
+    price: 290,
+    originalPrice: 350,
+    imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80',
+    category: 'Fast Food & Burger',
+    isAvailable: true,
+    restaurantId: 'fallback-restaurant-2',
+    restaurant: { name: 'Pizza & Burger House', reviews: [{ rating: 5 }, { rating: 4 }] },
   },
   {
     id: 'fallback-3',
-    name: 'Margherita Pizza',
-    description: 'Wood-fired pizza with tomato, mozzarella and basil.',
-    price: 390,
-    originalPrice: 480,
-    imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80',
+    name: 'Pepperoni Passion Pizza (12 inch)',
+    description: 'Classic Italian pizza crust topped with rich tomato sauce, mozzarella, and spicy beef pepperoni.',
+    price: 750,
+    originalPrice: 850,
+    imageUrl: 'https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?auto=format&fit=crop&w=800&q=80',
     category: 'Pizza & Pasta',
     isAvailable: true,
-    restaurantId: 'fallback-restaurant',
-    restaurant: { reviews: [] },
+    restaurantId: 'fallback-restaurant-2',
+    restaurant: { name: 'Pizza & Burger House', reviews: [{ rating: 5 }] },
+  },
+  {
+    id: 'fallback-4',
+    name: 'Creamy White Sauce Alfredo Pasta',
+    description: 'Penne pasta tossed in rich parmesan garlic white sauce with grilled chicken breast.',
+    price: 330,
+    originalPrice: null,
+    imageUrl: 'https://images.unsplash.com/photo-1621996346565-e3d5d6281270?auto=format&fit=crop&w=800&q=80',
+    category: 'Pizza & Pasta',
+    isAvailable: true,
+    restaurantId: 'fallback-restaurant-2',
+    restaurant: { name: 'Pizza & Burger House', reviews: [{ rating: 4 }] },
+  },
+  {
+    id: 'fallback-5',
+    name: 'Szechuan Chicken Fried Rice',
+    description: 'Spicy wok-fried rice with eggs, fresh seasonal vegetables, and tender chicken bits.',
+    price: 250,
+    originalPrice: 300,
+    imageUrl: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=800&q=80',
+    category: 'Chinese & Thai',
+    isAvailable: true,
+    restaurantId: 'fallback-restaurant-1',
+    restaurant: { name: "Sultan's Dine & Cafe", reviews: [{ rating: 5 }] },
+  },
+  {
+    id: 'fallback-6',
+    name: 'Crispy Zinger Chicken Burger',
+    description: 'Deep-fried crispy spicy chicken fillet served with creamy mayonnaise and sesame bun.',
+    price: 210,
+    originalPrice: 260,
+    imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80',
+    category: 'Fast Food & Burger',
+    isAvailable: true,
+    restaurantId: 'fallback-restaurant-2',
+    restaurant: { name: 'Pizza & Burger House', reviews: [{ rating: 5 }] },
+  },
+  {
+    id: 'fallback-7',
+    name: 'Sizzling Chocolate Lava Cake',
+    description: 'Warm chocolate cake with a melting gooey chocolate center, baked fresh to order.',
+    price: 160,
+    originalPrice: null,
+    imageUrl: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=800&q=80',
+    category: 'Dessert & Bakery',
+    isAvailable: true,
+    restaurantId: 'fallback-restaurant-1',
+    restaurant: { name: "Sultan's Dine & Cafe", reviews: [{ rating: 5 }] },
+  },
+  {
+    id: 'fallback-8',
+    name: 'Fresh Mint Lemonade Mojito',
+    description: 'Zesty lemon juice mixed with fresh garden mint leaves, chilled ice, and sparkling soda.',
+    price: 110,
+    originalPrice: 140,
+    imageUrl: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=80',
+    category: 'Beverages & Drinks',
+    isAvailable: true,
+    restaurantId: 'fallback-restaurant-2',
+    restaurant: { name: 'Pizza & Burger House', reviews: [{ rating: 5 }] },
   },
 ];
 
@@ -88,8 +148,8 @@ const formatMenuItems = (items: (MenuItemWithReviews | typeof fallbackMenuItems[
       ...item,
       description: cleanDescription,
       originalPrice: (item as any).originalPrice || originalPrice,
-      avgRating: totalReviews > 0 ? avgRating : 0,
-      totalReviews,
+      avgRating: totalReviews > 0 ? avgRating : 5.0,
+      totalReviews: totalReviews > 0 ? totalReviews : 1,
     };
   });
 
@@ -106,7 +166,11 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(formatMenuItems(menuItems), { status: 200 });
+    if (menuItems && menuItems.length > 0) {
+      return NextResponse.json(formatMenuItems(menuItems), { status: 200 });
+    }
+    // Fallback to sample items if DB is empty
+    return NextResponse.json(formatMenuItems(fallbackMenuItems), { status: 200 });
   } catch (error: any) {
     console.error("Error fetching menu with reviews:", error);
     return NextResponse.json(formatMenuItems(fallbackMenuItems), { status: 200 });
@@ -116,7 +180,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, description, price, originalPrice, imageUrl, category, ownerId } = body; 
+    const { name, description, price, originalPrice, imageUrl, category, ownerId } = body;
 
     if (!name || !price || !ownerId) {
       return NextResponse.json({ message: 'Missing required fields!' }, { status: 400 });
@@ -137,8 +201,8 @@ export async function POST(request: Request) {
     }
 
     const selectedCategory = category || "Fast Food & Burger";
-    const finalImageUrl = (imageUrl && imageUrl.trim().length > 5) 
-      ? imageUrl.trim() 
+    const finalImageUrl = (imageUrl && imageUrl.trim().length > 5)
+      ? imageUrl.trim()
       : (defaultCategoryImages[selectedCategory] || defaultCategoryImages["Fast Food & Burger"]);
 
     const cleanBaseDesc = description ? description.trim() : "";
@@ -186,7 +250,7 @@ export async function PATCH(request: Request) {
       const existing = await prisma.menuItem.findUnique({ where: { id } });
       const currentDesc = description !== undefined ? description : (existing?.description || "");
       const { cleanDescription } = parseItemDescription(currentDesc);
-      
+
       const currentPrice = price ? parseFloat(price) : (existing?.price || 0);
       const targetOrigPrice = originalPrice !== undefined
         ? (originalPrice ? parseFloat(originalPrice) : null)

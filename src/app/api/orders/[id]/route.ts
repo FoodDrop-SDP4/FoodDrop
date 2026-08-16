@@ -30,6 +30,8 @@ export async function GET(
             rating: true,
             totalReviews: true,
             profilePic: true,
+            latitude: true,
+            longitude: true,
           },
         },
         orderItems: {
