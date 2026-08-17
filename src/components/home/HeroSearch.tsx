@@ -42,47 +42,79 @@ export default function HeroSearch({
   };
 
   return (
-    <div className="relative flex min-h-[480px] flex-col items-center justify-center bg-slate-950 px-6 pb-24 pt-32 text-center sm:px-12 font-sans">
-      <div className="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070')] bg-cover bg-center" />
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent" />
+    <div className="relative flex min-h-[500px] flex-col items-center justify-center bg-slate-950 px-6 pb-20 pt-28 text-center sm:px-12 font-sans overflow-hidden">
+      <div className="absolute inset-0 opacity-25 bg-[url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070')] bg-cover bg-center" />
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950/40" />
 
-      <div className="relative z-10 w-full max-w-3xl space-y-8">
-        <h1 className="text-4xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl">
-          Craving something <span className="text-orange-500">delicious?</span>
+      {/* Decorative Glow Elements */}
+      <div className="absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-72 rounded-full bg-orange-600/20 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-10 right-1/4 h-64 w-64 rounded-full bg-emerald-600/10 blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 w-full max-w-3xl space-y-6">
+        {/* Highlight Badge */}
+        <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-black text-white backdrop-blur-md border border-white/15 shadow-sm animate-in fade-in slide-in-from-bottom-2">
+          <span className="flex h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
+          <span>Restaurants & Homemade Home-Cooked Food in One Place</span>
+        </div>
+
+        <h1 className="text-4xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl leading-tight">
+          Craving something <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-400 to-orange-500">delicious?</span>
         </h1>
-        <p className="mx-auto max-w-xl text-lg text-slate-300">
-          Order from your favorite restaurants and get it delivered right to your doorstep in minutes.
+        <p className="mx-auto max-w-xl text-base sm:text-lg text-slate-300 font-medium">
+          Order from your favorite commercial restaurants or authentic home kitchens & get it delivered fast.
         </p>
 
         {/* Search Box Container with Suggestions Dropdown */}
         <div ref={searchRef} className="relative mx-auto w-full max-w-xl">
-          <div className="flex w-full items-center overflow-hidden rounded-full bg-white p-1.5 shadow-2xl transition focus-within:ring-2 focus-within:ring-orange-500">
+          <div className="flex w-full items-center overflow-hidden rounded-full bg-white p-1.5 shadow-2xl transition focus-within:ring-4 focus-within:ring-orange-500/20 border border-slate-100">
             <div className="flex h-12 w-12 items-center justify-center text-slate-400">
-              <Search className="h-5 w-5" />
+              <Search className="h-5 w-5 text-orange-500" />
             </div>
             <input
               type="text"
-              placeholder="Search for food, category or restaurants..."
+              placeholder="Search dishes, burgers, biryani, or home chefs..."
               value={searchQuery}
               onFocus={() => searchQuery.trim() && setShowSuggestions(true)}
               onChange={(e) => {
                 onSearchChange(e.target.value);
                 if (e.target.value.trim()) setShowSuggestions(true);
               }}
-              className="h-12 w-full bg-transparent px-2 font-medium text-slate-900 outline-none placeholder:text-slate-400"
+              className="h-12 w-full bg-transparent px-2 font-medium text-slate-900 outline-none placeholder:text-slate-400 text-sm sm:text-base"
             />
             {searchQuery && (
               <button
                 onClick={handleClear}
-                className="p-2 text-slate-400 hover:text-slate-600 mr-1"
+                className="p-2 text-slate-400 hover:text-slate-600 mr-1 transition"
                 aria-label="Clear search"
               >
                 <X className="h-4 w-4" />
               </button>
             )}
-            <button className="h-12 rounded-full bg-orange-600 px-8 font-bold text-white transition hover:bg-orange-700 shrink-0">
+            <button className="h-12 rounded-full bg-gradient-to-r from-orange-600 to-amber-600 px-7 font-bold text-white shadow-md shadow-orange-600/30 transition hover:scale-105 active:scale-95 shrink-0">
               Find Food
             </button>
+          </div>
+
+          {/* Quick Popular Keywords Chips */}
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400 font-semibold">
+            <span>Popular:</span>
+            {[
+              { label: "🍛 Kacchi", query: "Kacchi" },
+              { label: "🏡 Khichuri", query: "Khichuri" },
+              { label: "🍔 BBQ Burger", query: "Burger" },
+              { label: "🍕 Pizza", query: "Pizza" },
+              { label: "🐟 Ilish", query: "Ilish" },
+              { label: "🧁 Cupcake", query: "Cupcake" },
+            ].map((tag) => (
+              <button
+                key={tag.query}
+                type="button"
+                onClick={() => onSearchChange(tag.query)}
+                className="rounded-full bg-white/10 px-3 py-1 text-slate-200 backdrop-blur transition hover:bg-white/20 hover:text-white border border-white/10"
+              >
+                {tag.label}
+              </button>
+            ))}
           </div>
 
           {/* Autocomplete Suggestions Dropdown */}

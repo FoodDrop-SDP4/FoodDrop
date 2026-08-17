@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent, Suspense } from "react";
+import { useState, useEffect, FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -31,6 +31,24 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  // 🚀 Preload remembered email on mount
+  useEffect(() => {
+    try {
+      const savedEmail = localStorage.getItem("fooddrop_remembered_email");
+      const savedRole = localStorage.getItem("fooddrop_remembered_role") as RoleType | null;
+      if (savedEmail) {
+        setEmail(savedEmail);
+        setRememberMe(true);
+      }
+      if (savedRole && ["CUSTOMER", "RESTAURANT_OWNER", "RIDER"].includes(savedRole)) {
+        setSelectedRole(savedRole);
+      }
+    } catch (e) {
+      // quiet
+    }
+  }, []);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -59,6 +77,15 @@ function LoginForm() {
           );
           setIsLoading(false);
           return;
+        }
+
+        // 🚀 Handle Remember Me Persistence
+        if (rememberMe) {
+          localStorage.setItem("fooddrop_remembered_email", email.trim());
+          localStorage.setItem("fooddrop_remembered_role", selectedRole);
+        } else {
+          localStorage.removeItem("fooddrop_remembered_email");
+          localStorage.removeItem("fooddrop_remembered_role");
         }
 
         // Save in localStorage for immediate client hydration
@@ -216,17 +243,34 @@ function LoginForm() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
 
+          {/* 🌟 Remember Me & Security Options */}
+          <div className="flex items-center justify-between pt-1">
+            <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold text-slate-600 hover:text-slate-900">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 rounded-md border-slate-300 text-orange-600 focus:ring-orange-500 accent-orange-600 cursor-pointer"
+              />
+              <span>Remember me on this device</span>
+            </label>
+
+            <span className="text-[11px] font-bold text-slate-400 hover:text-orange-600 cursor-pointer transition">
+              Forgot password?
+            </span>
+          </div>
+
           <button
             type="submit"
             disabled={isLoading}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-600 px-4 py-4 text-sm font-black text-white shadow-lg shadow-orange-600/30 transition hover:bg-orange-700 active:scale-98 disabled:opacity-70"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-600 px-4 py-4 text-sm font-black text-white shadow-lg shadow-orange-600/30 transition hover:bg-orange-700 active:scale-98 disabled:opacity-70 cursor-pointer"
           >
             {isLoading ? (
               <>
