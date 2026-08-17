@@ -57,11 +57,21 @@ export default function CustomerHomepage() {
     fetchFoods();
   }, []);
 
+  const [selectedKitchenType, setSelectedKitchenType] = useState<"ALL" | "RESTAURANT" | "HOMEMADE">("ALL");
+
   // Filter & Search Logic
   useEffect(() => {
     let result = foods;
 
-    // 1. Category Filter
+    // 1. Kitchen Type Filter (Restaurants vs Homemade)
+    if (selectedKitchenType !== "ALL") {
+      result = result.filter((food) => {
+        const type = food.restaurant?.restaurantType || "RESTAURANT";
+        return type === selectedKitchenType;
+      });
+    }
+
+    // 2. Category Filter
     if (selectedCategory !== "All") {
       result = result.filter((food) => {
         if (!food.category) return false;
@@ -71,7 +81,7 @@ export default function CustomerHomepage() {
       });
     }
 
-    // 2. Search Query Matching
+    // 3. Search Query Matching
     if (searchQuery.trim() !== "") {
       const q = searchQuery.trim().toLowerCase();
 
@@ -97,7 +107,10 @@ export default function CustomerHomepage() {
     }
 
     setFilteredFoods(result);
-  }, [searchQuery, selectedCategory, foods]);
+  }, [searchQuery, selectedCategory, selectedKitchenType, foods]);
+
+  const homemadeCount = foods.filter((f) => f.restaurant?.restaurantType === "HOMEMADE").length;
+  const restaurantCount = foods.filter((f) => (f.restaurant?.restaurantType || "RESTAURANT") === "RESTAURANT").length;
 
   return (
     <main className="min-h-screen bg-slate-50 font-sans">
@@ -111,15 +124,75 @@ export default function CustomerHomepage() {
 
       {/* Food Grid Section */}
       <div className="mx-auto max-w-7xl px-6 py-12 sm:px-10">
-        <div className="mb-10 space-y-4">
-          <div>
-            <h2 className="text-3xl font-black tracking-tight text-slate-900">
-              {searchQuery ? `Search Results for "${searchQuery}"` : "Popular Near You"}
-            </h2>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Showing {filteredFoods.length} items{" "}
-              {selectedCategory !== "All" && `in ${selectedCategory}`}
-            </p>
+        <div className="mb-10 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-black tracking-tight text-slate-900">
+                {searchQuery ? `Search Results for "${searchQuery}"` : "Popular Near You"}
+              </h2>
+              <p className="mt-1 text-sm font-medium text-slate-500">
+                Showing {filteredFoods.length} items{" "}
+                {selectedCategory !== "All" && `in ${selectedCategory}`}
+              </p>
+            </div>
+
+            {/* 🌟 Kitchen Type Switcher Tabs (All | Restaurants | Homemade) */}
+            <div className="flex items-center gap-2 rounded-2xl bg-white p-1.5 border border-slate-200/80 shadow-sm self-start sm:self-auto">
+              <button
+                onClick={() => setSelectedKitchenType("ALL")}
+                className={`rounded-xl px-3.5 py-2 text-xs font-black transition ${
+                  selectedKitchenType === "ALL"
+                    ? "bg-slate-900 text-white shadow"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                }`}
+              >
+                All Kitchens ({foods.length})
+              </button>
+
+              <button
+                onClick={() => setSelectedKitchenType("HOMEMADE")}
+                className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-black transition ${
+                  selectedKitchenType === "HOMEMADE"
+                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-500/20"
+                    : "text-emerald-700 hover:bg-emerald-50"
+                }`}
+              >
+                <span>🏡 Homemade Foods</span>
+                {homemadeCount > 0 && (
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                      selectedKitchenType === "HOMEMADE"
+                        ? "bg-white text-emerald-800"
+                        : "bg-emerald-100 text-emerald-800"
+                    }`}
+                  >
+                    {homemadeCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setSelectedKitchenType("RESTAURANT")}
+                className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-black transition ${
+                  selectedKitchenType === "RESTAURANT"
+                    ? "bg-orange-600 text-white shadow-md shadow-orange-500/20"
+                    : "text-orange-700 hover:bg-orange-50"
+                }`}
+              >
+                <span>🍽️ Restaurants</span>
+                {restaurantCount > 0 && (
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                      selectedKitchenType === "RESTAURANT"
+                        ? "bg-white text-orange-800"
+                        : "bg-orange-100 text-orange-800"
+                    }`}
+                  >
+                    {restaurantCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Reusable Category Filter Component */}

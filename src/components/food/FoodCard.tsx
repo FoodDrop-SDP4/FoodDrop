@@ -92,13 +92,24 @@ export default function FoodCard({ food, onSelect }: FoodCardProps) {
 
       {/* Food Info & Action */}
       <div className="flex flex-1 flex-col p-5">
-        <Link
-          href={`/restaurants/${food.restaurantId}`}
-          onClick={(e) => onSelect && e.stopPropagation()}
-          className="line-clamp-1 text-lg font-bold text-slate-900 transition hover:text-orange-600"
-        >
-          {food.name}
-        </Link>
+        <div className="flex items-center justify-between gap-2">
+          <Link
+            href={`/restaurants/${food.restaurantId}`}
+            onClick={(e) => onSelect && e.stopPropagation()}
+            className="line-clamp-1 text-lg font-bold text-slate-900 transition hover:text-orange-600"
+          >
+            {food.name}
+          </Link>
+          {food.restaurant?.restaurantType === "HOMEMADE" ? (
+            <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 border border-emerald-200">
+              🏡 Home Made
+            </span>
+          ) : (
+            <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-700 border border-orange-200">
+              🍽️ Restaurant
+            </span>
+          )}
+        </div>
 
         {food.restaurant && (
           <Link

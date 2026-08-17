@@ -37,7 +37,7 @@ import {
   Layers,
   Award,
 } from "lucide-react";
-import { MenuItem, Order, Restaurant, RestaurantStats, CATEGORIES } from "../../types";
+import { MenuItem, Order, Restaurant, RestaurantStats, CATEGORIES, RestaurantType } from "../../types";
 import OrderReceiptModal from "../../components/orders/OrderReceiptModal";
 import { playKitchenBellSound, playCancelAlertSound } from "../../lib/sound";
 
@@ -82,6 +82,7 @@ export default function ProfessionalRestaurantDashboard() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [editResName, setEditResName] = useState("");
   const [editResAddress, setEditResAddress] = useState("");
+  const [editResType, setEditResType] = useState<RestaurantType>("RESTAURANT");
 
   const fetchDashboardData = async (targetId?: string) => {
     const activeId = targetId || ownerId;
@@ -98,6 +99,7 @@ export default function ProfessionalRestaurantDashboard() {
         if (result.restaurant) {
           setEditResName(result.restaurant.name);
           setEditResAddress(result.restaurant.address);
+          setEditResType(result.restaurant.restaurantType || "RESTAURANT");
         }
       }
     } catch (error) {
@@ -226,6 +228,7 @@ export default function ProfessionalRestaurantDashboard() {
           restaurantId: restaurant.id,
           name: editResName,
           address: editResAddress,
+          restaurantType: editResType,
         }),
       });
 
@@ -467,17 +470,36 @@ export default function ProfessionalRestaurantDashboard() {
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur px-6 py-4">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-600 text-white shadow-md shadow-orange-600/30">
-              <Store className="h-6 w-6" />
+            <div
+              className={`flex h-11 w-11 items-center justify-center rounded-2xl text-white shadow-md ${
+                restaurant?.restaurantType === "HOMEMADE"
+                  ? "bg-emerald-600 shadow-emerald-600/30"
+                  : "bg-orange-600 shadow-orange-600/30"
+              }`}
+            >
+              {restaurant?.restaurantType === "HOMEMADE" ? (
+                <ChefHat className="h-6 w-6" />
+              ) : (
+                <Store className="h-6 w-6" />
+              )}
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg font-black text-slate-900">
                   {restaurant?.name || "Kitchen Hub"}
                 </h1>
+                {restaurant?.restaurantType === "HOMEMADE" ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    🏡 Home Kitchen Partner
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-800 border border-orange-200">
+                    🍽️ Commercial Restaurant
+                  </span>
+                )}
                 <button
                   onClick={() => setIsProfileModalOpen(true)}
-                  className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
                   title="Settings & Profile"
                 >
                   <Settings className="h-4 w-4" />
@@ -1527,7 +1549,7 @@ export default function ProfessionalRestaurantDashboard() {
           />
           <div className="relative z-10 w-full max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-lg font-black text-slate-900">Restaurant Settings</h3>
+              <h3 className="text-lg font-black text-slate-900">Kitchen & Profile Settings</h3>
               <button
                 onClick={() => setIsProfileModalOpen(false)}
                 className="rounded-full p-2 text-slate-400 hover:bg-slate-100"
@@ -1537,8 +1559,41 @@ export default function ProfessionalRestaurantDashboard() {
             </div>
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
+              {/* Business Model Selector */}
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Restaurant Name</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1.5">Business Model</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditResType("RESTAURANT")}
+                    className={`flex items-center justify-center gap-1.5 rounded-xl border p-2.5 text-xs font-bold transition ${
+                      editResType === "RESTAURANT"
+                        ? "border-orange-600 bg-orange-50 text-orange-700 ring-1 ring-orange-500"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Store className="h-4 w-4" />
+                    Restaurant
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditResType("HOMEMADE")}
+                    className={`flex items-center justify-center gap-1.5 rounded-xl border p-2.5 text-xs font-bold transition ${
+                      editResType === "HOMEMADE"
+                        ? "border-emerald-600 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <ChefHat className="h-4 w-4" />
+                    Home Kitchen
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  {editResType === "HOMEMADE" ? "Home Kitchen / Brand Name" : "Restaurant Name"}
+                </label>
                 <input
                   required
                   type="text"

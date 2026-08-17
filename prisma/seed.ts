@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-const dummyFoods = [
+const restaurantFoods = [
   // Biryani & Rice
   {
     name: "Special Mutton Kacchi Biryani",
@@ -79,59 +79,6 @@ const dummyFoods = [
     category: "Pizza & Pasta",
     imageUrl: "https://images.unsplash.com/photo-1621996346565-e3d5d6281270?auto=format&fit=crop&w=800&q=80",
   },
-  {
-    name: "Spicy Baked Pasta",
-    description: "Oven-baked pasta layered with spicy marinara sauce, minced beef, and mozzarella.",
-    price: 310,
-    category: "Pizza & Pasta",
-    imageUrl: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&w=800&q=80",
-  },
-
-  // Chinese & Thai
-  {
-    name: "Szechuan Fried Rice",
-    description: "Spicy wok-fried rice with eggs, fresh vegetables, and tender chicken bits.",
-    price: 250,
-    category: "Chinese & Thai",
-    imageUrl: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    name: "Chili Onion Chicken",
-    description: "Crispy chicken tossed with bell peppers, green chilies, and tangy soy glaze.",
-    price: 360,
-    category: "Chinese & Thai",
-    imageUrl: "https://images.unsplash.com/photo-1525755662778-989d0524087e?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    name: "Authentic Tom Yum Soup",
-    description: "Hot and sour Thai soup with prawns, lemongrass, mushrooms, and kaffir lime leaves.",
-    price: 280,
-    category: "Chinese & Thai",
-    imageUrl: "https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=800&q=80",
-  },
-
-  // Dessert & Bakery
-  {
-    name: "Sizzling Chocolate Lava Cake",
-    description: "Warm chocolate cake with a melting gooey chocolate center, served fresh.",
-    price: 160,
-    category: "Dessert & Bakery",
-    imageUrl: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    name: "New York Creamy Cheesecake",
-    description: "Rich, smooth baked cheesecake on a crunchy graham cracker crust.",
-    price: 260,
-    category: "Dessert & Bakery",
-    imageUrl: "https://images.unsplash.com/photo-1524351199678-941a58a3df50?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    name: "Chocolate Fudgy Brownie",
-    description: "Dense and rich chocolate brownie topped with chocolate drizzle.",
-    price: 120,
-    category: "Dessert & Bakery",
-    imageUrl: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=800&q=80",
-  },
 
   // Beverages & Drinks
   {
@@ -142,18 +89,64 @@ const dummyFoods = [
     imageUrl: "https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=800&q=80",
   },
   {
-    name: "Fresh Mango Smoothie",
-    description: "Thick and refreshing smoothie made from pure sweet mango pulp and yogurt.",
-    price: 150,
-    category: "Beverages & Drinks",
-    imageUrl: "https://images.unsplash.com/photo-1553530666-ba11a7da3888?auto=format&fit=crop&w=800&q=80",
-  },
-  {
     name: "Mint Lemonade Mojito",
     description: "Zesty lemon juice mixed with fresh mint leaves, ice, and sparkling soda.",
     price: 110,
     category: "Beverages & Drinks",
     imageUrl: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=80",
+  },
+];
+
+// 🏡 Authentic Homemade Dishes
+const homemadeFoods = [
+  {
+    name: "Ammi's Special Beef Bhuna Khichuri",
+    description: "Slow-cooked aromatic chinigura rice khichuri paired with spicy homemade tender beef bhuna and egg.",
+    price: 260,
+    category: "Biryani & Rice",
+    imageUrl: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    name: "Shorshe Ilish with Steamed Rice",
+    description: "Authentic Padma Hilsa fish cooked in pure mustard paste, green chilies, and served with hot rice.",
+    price: 380,
+    category: "Biryani & Rice",
+    imageUrl: "https://images.unsplash.com/photo-1589302168068-964664d93dc0?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    name: "Handi Chicken Curry & Fluffy Luchi (4 pcs)",
+    description: "Homestyle clay pot chicken curry with 4 pieces of puffed deep-fried golden luchi.",
+    price: 190,
+    category: "Biryani & Rice",
+    imageUrl: "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    name: "Rui Macher Jhol with Seasonal Veggies",
+    description: "Fresh Rui fish cooked in light homestyle cumin broth with potatoes, cauliflower, and cilantro.",
+    price: 180,
+    category: "Biryani & Rice",
+    imageUrl: "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    name: "Homemade Shahi Tukda & Kheer",
+    description: "Crispy fried bread soaked in saffron cardamom milk, condensed milk, and topped with pistachios.",
+    price: 140,
+    category: "Dessert & Bakery",
+    imageUrl: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    name: "Freshly Baked Chocolate Fudge Cupcakes (2 pcs)",
+    description: "Moist dark chocolate cupcakes with rich home-whipped buttercream frosting.",
+    price: 150,
+    category: "Dessert & Bakery",
+    imageUrl: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    name: "Traditional Nolen Gurer Payesh",
+    description: "Authentic winter date jaggery rice pudding prepared with cow milk and crushed dry fruits.",
+    price: 130,
+    category: "Dessert & Bakery",
+    imageUrl: "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&w=800&q=80",
   },
 ];
 
@@ -176,12 +169,12 @@ async function main() {
     },
   });
 
-  // 2. Create Restaurant Owners
+  // 2. Create Commercial Restaurant Owners
   const owner1 = await prisma.user.upsert({
     where: { email: "sultan@fooddrop.com" },
     update: { password: defaultPassword },
     create: {
-      name: "Sultan Owner",
+      name: "Sultan Ahmed",
       email: "sultan@fooddrop.com",
       password: defaultPassword,
       phone: "01722222222",
@@ -201,7 +194,32 @@ async function main() {
     },
   });
 
-  // 3. Create Test Rider
+  // 🏡 3. Create Home Kitchen / Homemade Chefs
+  const homeChef1 = await prisma.user.upsert({
+    where: { email: "farhana@fooddrop.com" },
+    update: { password: defaultPassword },
+    create: {
+      name: "Farhana Yasmin",
+      email: "farhana@fooddrop.com",
+      password: defaultPassword,
+      phone: "01755555555",
+      role: "RESTAURANT_OWNER",
+    },
+  });
+
+  const homeChef2 = await prisma.user.upsert({
+    where: { email: "shila@fooddrop.com" },
+    update: { password: defaultPassword },
+    create: {
+      name: "Shila Rahman",
+      email: "shila@fooddrop.com",
+      password: defaultPassword,
+      phone: "01766666666",
+      role: "RESTAURANT_OWNER",
+    },
+  });
+
+  // 4. Create Test Rider
   await prisma.user.upsert({
     where: { email: "rider@fooddrop.com" },
     update: { password: defaultPassword },
@@ -217,11 +235,12 @@ async function main() {
     },
   });
 
-  // 4. Create Restaurants
+  // 5. Create Commercial Restaurants
   const restaurant1 = await prisma.restaurant.create({
     data: {
       name: "Sultan's Dine & Cafe",
       address: "Dhanmondi 27, Dhaka",
+      restaurantType: "RESTAURANT",
       ownerId: owner1.id,
     },
   });
@@ -230,13 +249,33 @@ async function main() {
     data: {
       name: "Pizza & Burger House",
       address: "Banani Road 11, Dhaka",
+      restaurantType: "RESTAURANT",
       ownerId: owner2.id,
     },
   });
 
-  // 5. Insert 20 Menu Items into Database
+  // 🏡 6. Create Home Kitchen Entities
+  const homeKitchen1 = await prisma.restaurant.create({
+    data: {
+      name: "Ammi's Kitchen (Farhana's Craft)",
+      address: "Sector 4, Uttara, Dhaka",
+      restaurantType: "HOMEMADE",
+      ownerId: homeChef1.id,
+    },
+  });
+
+  const homeKitchen2 = await prisma.restaurant.create({
+    data: {
+      name: "Bake & Cook by Shila",
+      address: "Block D, Bashundhara R/A, Dhaka",
+      restaurantType: "HOMEMADE",
+      ownerId: homeChef2.id,
+    },
+  });
+
+  // 7. Insert Commercial Restaurant Menu Items
   let index = 0;
-  for (const food of dummyFoods) {
+  for (const food of restaurantFoods) {
     const targetRestaurantId = index % 2 === 0 ? restaurant1.id : restaurant2.id;
 
     await prisma.menuItem.create({
@@ -252,7 +291,25 @@ async function main() {
     index++;
   }
 
-  console.log("✅ Seeding completed successfully!");
+  // 🏡 8. Insert Homemade Kitchen Menu Items
+  let homeIndex = 0;
+  for (const food of homemadeFoods) {
+    const targetKitchenId = homeIndex % 2 === 0 ? homeKitchen1.id : homeKitchen2.id;
+
+    await prisma.menuItem.create({
+      data: {
+        name: food.name,
+        description: food.description,
+        price: food.price,
+        category: food.category,
+        imageUrl: food.imageUrl,
+        restaurantId: targetKitchenId,
+      },
+    });
+    homeIndex++;
+  }
+
+  console.log("✅ Seeding with Restaurants & Homemade Kitchens completed successfully!");
 }
 
 main()
@@ -262,4 +319,4 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
-  });
+  });

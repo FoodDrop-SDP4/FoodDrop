@@ -67,14 +67,21 @@ model PendingRegistration {
   createdAt    DateTime @default(now())
 }
 
+// রেস্টুরেন্ট বা সেলার টাইপ
+enum RestaurantType {
+  RESTAURANT
+  HOMEMADE
+}
+
 // 2. Restaurant Model
 model Restaurant {
-  id        String   @id @default(uuid())
-  name      String
-  address   String
-  isOnline  Boolean  @default(true)
-  ownerId   String
-  createdAt DateTime @default(now())
+  id             String         @id @default(uuid())
+  name           String
+  address        String
+  restaurantType RestaurantType @default(RESTAURANT)
+  isOnline       Boolean        @default(true)
+  ownerId        String
+  createdAt      DateTime       @default(now())
 
   // Relationships
   owner     User       @relation(fields: [ownerId], references: [id])
