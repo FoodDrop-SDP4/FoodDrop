@@ -123,7 +123,7 @@ export default function FoodieAIAssistant() {
     {
       id: "welcome-msg",
       sender: "AI",
-      text: `${timeContext.greeting} 👨‍🍳 I'm your **FoodDrop AI Chef**. ${timeContext.periodText}. Tell me what you crave or pick a recommendation:`,
+      text: `${timeContext.greeting} 👨‍🍳 I'm your **FoodDrop AI Chef**! ${timeContext.periodText}. Tell me what you crave in English, Bangla, or Banglish:`,
       followUps: [
         "Combo for 2 under ৳500 👫",
         "Best Biryani & Kacchi 🍛",
@@ -591,7 +591,7 @@ export default function FoodieAIAssistant() {
           >
             <input
               type="text"
-              placeholder="e.g. 200 takar moddhe biryani or combo for 2..."
+              placeholder="Ask in English, Bangla or Banglish (e.g. 200 takar moddhe biryani)..."
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-medium outline-none focus:border-orange-500 focus:bg-white transition"

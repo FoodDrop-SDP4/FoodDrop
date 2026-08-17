@@ -8,16 +8,57 @@ interface RecommendRequestBody {
   maxBudget?: number;
 }
 
+export type DetectedLanguage = "BANGLA" | "BANGLISH" | "ENGLISH";
+
+// 🌐 Smart Language Detector
+function detectLanguage(text: string): DetectedLanguage {
+  // 1. Check for Bengali Unicode script (\u0980-\u09FF)
+  if (/[\u0980-\u09FF]/.test(text)) {
+    return "BANGLA";
+  }
+
+  // 2. Check for characteristic Banglish keywords & syllables
+  const banglishPatterns = [
+    /\b(amar|apnar|tumar|tomar|ami|tumi|apni|amra|tora|vai|bhai|apu)\b/i,
+    /\b(khabar|khabo|khete|khawa|khai|khida|khide|khidha|khaoa|khawon)\b/i,
+    /\b(kemon|kire|ki|kothay|koto|keno|kokhon|kemne|koba)\b/i,
+    /\b(lagbe|chai|dao|den|dekhaw|dekhan|bolen|bolo|bolbo|dekhbo)\b/i,
+    /\b(ache|achen|nai|nehi|hobe|hobe na|parba|paro|paringa)\b/i,
+    /\b(valo|bhalo|kharap|joss|shundor|moja|mojadar|osadharon|pera)\b/i,
+    /\b(taka|takar|moddhe|dam|kom|beshi|sosta|dami|budget|poisa)\b/i,
+    /\b(jhal|misti|mishti|tok|tel|masala|gorur|khasi|murgi|dim|bhat)\b/i,
+    /\b(duijon|2jon|couple|ekjon|nasta|shokal|dupur|rat|raat|bikal)\b/i,
+    /\b(dhonnobad|thnx|shabash|shob|kichu|ekhon|pore|kisu)\b/i,
+  ];
+
+  const matchCount = banglishPatterns.filter((p) => p.test(text)).length;
+  if (matchCount >= 1) {
+    return "BANGLISH";
+  }
+
+  return "ENGLISH";
+}
+
+// Convert Bangla Numerals (০-৯) to English (0-9)
+function parseBanglaNumbers(str: string): string {
+  const banglaDigits: Record<string, string> = {
+    "০": "0", "১": "1", "২": "2", "৩": "3", "৪": "4",
+    "৫": "5", "৬": "6", "৭": "7", "৮": "8", "৯": "9",
+  };
+  return str.replace(/[০-৯]/g, (d) => banglaDigits[d] || d);
+}
+
 // Extract budget from natural language (Bangla / Banglish / English)
 function extractBudget(text: string): number | null {
+  const normalized = parseBanglaNumbers(text.toLowerCase());
   const patterns = [
-    /(?:under|below|max|budget|within|kom|moddhe)?\s*(?:৳|tk|bdt|taka)?\s*(\d{2,4})\s*(?:tk|taka|৳|bdt|takar)?/i,
-    /(\d{2,4})\s*(?:taka|tk|৳|bdt|takar\s*moddhe)/i,
-    /(?:৳|tk)\s*(\d{2,4})/i,
+    /(?:under|below|max|budget|within|kom|moddhe|ভিতরে|মধ্যে|কম)?\s*(?:৳|tk|bdt|taka|টাকা)?\s*(\d{2,4})\s*(?:tk|taka|৳|bdt|takar|টাকা|টাকার|টাকার\s*মধ্যে)?/i,
+    /(\d{2,4})\s*(?:taka|tk|৳|bdt|takar\s*moddhe|টাকা|টাকার\s*মধ্যে|টাকার\s*ভিতরে)/i,
+    /(?:৳|tk|টাকা)\s*(\d{2,4})/i,
   ];
 
   for (const pattern of patterns) {
-    const match = text.match(pattern);
+    const match = normalized.match(pattern);
     if (match && match[1]) {
       const val = parseInt(match[1], 10);
       if (val >= 50 && val <= 5000) {
@@ -28,7 +69,7 @@ function extractBudget(text: string): number | null {
   return null;
 }
 
-// 💬 Conversational Small-Talk & Chitchat Detector
+// 💬 Conversational Small-Talk & Chitchat Detector (understands English, Bangla, and Banglish)
 function detectChitchat(query: string): {
   isChitchat: boolean;
   message?: string;
@@ -37,55 +78,75 @@ function detectChitchat(query: string): {
   const q = query.toLowerCase().trim();
 
   // 1. Greetings
-  if (/^(hi|hello|hey|salam|assalamu alaikum|assalamualaikum|hola|ki khobor|sup|heya|yo|good morning|good evening|good afternoon)(\s.*)?$/i.test(q)) {
+  if (
+    /^(hi|hello|hey|salam|assalamu alaikum|assalamualaikum|hola|ki khobor|sup|heya|yo|good morning|good evening|good afternoon|হাই|হ্যালো|সালাম|আসসালামু আলাইকুম|শুভ সকাল|শুভ সন্ধ্যা)(\s.*)?$/i.test(
+      q
+    )
+  ) {
     return {
       isChitchat: true,
-      message: "Hello there! 👋 I am your **FoodDrop AI Chef**! I'm feeling great and ready to cook up some amazing food suggestions. What are you in the mood to eat today?",
+      message:
+        "Hello there! 👋 I am your **FoodDrop AI Chef**! I'm feeling great and ready to cook up some amazing food suggestions. What are you in the mood to eat today?",
       followUps: ["Best Biryani & Kacchi 🍛", "Spicy Treats < ৳250 🌶️", "Combo for 2 under ৳500 👫"],
     };
   }
 
   // 2. How are you / Kemon acho
-  if (/how are you|kemon acho|kemon asen|how do you do|valo acho|ki obostha|how r u|kemon cholche/i.test(q)) {
+  if (/how are you|kemon acho|kemon asen|how do you do|valo acho|ki obostha|how r u|kemon cholche|কেমন আছো|কেমন আছেন|ভালো আছো|কি খবর/i.test(q)) {
     return {
       isChitchat: true,
-      message: "I'm doing fantastic, full of culinary energy and excited to serve! 👨‍🍳🔥 How are you feeling today? Tell me what flavor you're craving — spicy, cheesy, or sweet?",
+      message:
+        "I'm doing fantastic, full of culinary energy and excited to serve! 👨‍🍳🔥 How are you feeling today? Tell me what flavor you're craving — spicy, cheesy, or sweet?",
       followUps: ["I want something spicy 🔥", "Show budget meals 💰", "Couple combo meal 👫"],
     };
   }
 
   // 3. Identity / Who are you
-  if (/who are you|tumi ke|tumar nam ki|what is your name|what can you do|tumi ki korte paro|help me|what are you/i.test(q)) {
+  if (/who are you|tumi ke|tumar nam ki|what is your name|what can you do|tumi ki korte paro|help me|what are you|তুমি কে|তোমার নাম কি|তুমি কি করতে পারো|সাহায্য করো/i.test(q)) {
     return {
       isChitchat: true,
-      message: "I'm **FoodDrop AI Chef** 🤖✨ — your smart food assistant! I can help you find dishes by budget (e.g. 'under ৳200'), match cravings (spicy, biryani, burgers), build 2-person combos, and even estimate calories! Try asking me anything!",
+      message:
+        "I'm **FoodDrop AI Chef** 🤖✨ — your smart food assistant! I can help you find dishes by budget (e.g. 'under ৳200'), match cravings in English, Bangla or Banglish (spicy, biryani, burgers), build combos, and even estimate calories! Try asking me anything!",
       followUps: ["Meals under ৳200 💰", "Healthy low-calorie 🥗", "Best Kacchi in town 🍛"],
     };
   }
 
-  // 4. Thank you / Compliments
-  if (/thank you|thanks|dhonnobad|thank u|thx|awesome|great job|joss|khub valo|you are great|love you|nice/i.test(q)) {
+  // 4. Hunger / Khida lagse
+  if (/khida lagse|khide lagse|khida|khide|pete khida|khabar chai|khabar dao|খিদে লাগছে|পেটে খিদে|খাবার চাই|কী খাবো|ক্ষুধা লাগছে/i.test(q)) {
     return {
       isChitchat: true,
-      message: "You're most welcome! 😊 It's always my pleasure to help you find delicious meals. Whenever hunger strikes, I'm right here with the best picks!",
+      message:
+        "Hungry? Don't worry! 🍽️ Here are top satisfying meals ready for fast delivery right to your door:",
+      followUps: ["Best Biryani & Kacchi 🍛", "Juicy Burgers 🍔", "Deals under ৳150 💰"],
+    };
+  }
+
+  // 5. Thank you / Compliments
+  if (/thank you|thanks|dhonnobad|thank u|thx|awesome|great job|joss|khub valo|you are great|love you|nice|ধন্যবাদ|থ্যাংকস|অনেক ভালো|অসাধারণ|জোশ/i.test(q)) {
+    return {
+      isChitchat: true,
+      message:
+        "You're most welcome! 😊 It's always my pleasure to help you find delicious meals. Whenever hunger strikes, I'm right here with the best picks!",
       followUps: ["Explore popular dishes 🍽️", "Sweet desserts 🍰", "Order something now 🛍️"],
     };
   }
 
-  // 5. Jokes / Humor
-  if (/tell me a joke|joke|funny|koutuk|hasao/i.test(q)) {
+  // 6. Jokes / Humor
+  if (/tell me a joke|joke|funny|koutuk|hasao|কৌতুক বলো|মজা করো|হাসাও/i.test(q)) {
     return {
       isChitchat: true,
-      message: "Why did the tomato blush? Because it saw the salad dressing! 🍅😄 Now tell me, what delicious meal should we order for you today?",
+      message:
+        "Why did the tomato blush? Because it saw the salad dressing! 🍅😄 Now tell me, what delicious meal should we order for you today?",
       followUps: ["Juicy Burgers 🍔", "Spicy Kacchi 🍛", "Crispy Fries 🍟"],
     };
   }
 
-  // 6. Farewell / Bye
-  if (/bye|goodbye|see you|pore kotha hobe|tata|allah hafez|khoda hafez/i.test(q)) {
+  // 7. Farewell / Bye
+  if (/bye|goodbye|see you|pore kotha hobe|tata|allah hafez|khoda hafez|বিদায়|বাই|টাটা|আল্লাহ হাফেজ/i.test(q)) {
     return {
       isChitchat: true,
-      message: "Goodbye for now! 👋 Hope you enjoy a mouth-watering meal. Have a wonderful day and see you soon!",
+      message:
+        "Goodbye for now! 👋 Hope you enjoy a mouth-watering meal. Have a wonderful day and see you soon!",
       followUps: ["Explore Home Page 🏠", "My Orders 📦"],
     };
   }
@@ -93,20 +154,47 @@ function detectChitchat(query: string): {
   return { isChitchat: false };
 }
 
-// Keyword categories for deep intent recognition
+// 🎯 Deep Multilingual Intent Keywords (English, Bangla Script & Banglish)
 const INTENT_KEYWORDS: Record<string, string[]> = {
-  spicy: ["spicy", "jhal", "chilli", "hot", "masala", "crispy", "peppery", "naga"],
-  biryani: ["biryani", "kacchi", "dum", "khichuri", "polao", "rice", "tehari", "morog polao"],
-  burger: ["burger", "patty", "fast food", "sandwich", "fries", "zinger"],
-  pizza: ["pizza", "pasta", "italian", "cheese", "crust", "slice"],
-  healthy: ["salad", "soup", "healthy", "diet", "boiled", "vegetable", "fresh", "light", "fruit"],
-  dessert: ["dessert", "sweet", "cake", "ice cream", "misti", "pudding", "pastry", "waffle", "chocolate"],
-  drinks: ["drink", "beverage", "shake", "smoothie", "coffee", "tea", "juice", "cold", "mojito", "lassi"],
-  meat: ["beef", "mutton", "chicken", "meat", "kebab", "gorur", "khasi", "murgi", "steak"],
-  budget: ["cheap", "budget", "low cost", "sosta", "affordable", "deal", "offer", "discount"],
+  spicy: [
+    "spicy", "jhal", "chilli", "hot", "masala", "crispy", "peppery", "naga", "morich",
+    "ঝাল", "স্পাইসি", "নাগা", "মরিচ", "মসলা", "তীব্র ঝাল", "ক্রিস্পি",
+  ],
+  biryani: [
+    "biryani", "kacchi", "dum", "khichuri", "polao", "rice", "tehari", "morog polao", "bhat", "basmati",
+    "বিরিয়ানি", "কাচ্চি", "খিচুড়ি", "পোলাও", "তেহারি", "মোরগ পোলাও", "ভাত", "বাসমতী",
+  ],
+  burger: [
+    "burger", "patty", "fast food", "sandwich", "fries", "zinger", "nuggets",
+    "বার্গার", "ফাস্টফুড", "স্যান্ডউইচ", "ফ্রাইস", "নাগেটস",
+  ],
+  pizza: [
+    "pizza", "pasta", "italian", "cheese", "crust", "slice", "chowmein", "cheesy",
+    "পিজ্জা", "পাস্তা", "চিজি", "চিজ", "ক্রাস্ট", "চাউমিন",
+  ],
+  healthy: [
+    "salad", "soup", "healthy", "diet", "boiled", "vegetable", "fresh", "light", "fruit", "oats", "calorie",
+    "সালাদ", "সুপ", "ডায়েট", "হেলদি", "শাকসবজি", "ফলমূল", "হালকা খাবার", "কম তেল",
+  ],
+  dessert: [
+    "dessert", "sweet", "cake", "ice cream", "misti", "mishti", "pudding", "pastry", "waffle", "chocolate", "doi",
+    "মিষ্টি", "কেক", "আইসক্রিম", "পুডিং", "পেস্ট্রি", "চকলেট", "দই", "মিষ্টান্ন",
+  ],
+  drinks: [
+    "drink", "beverage", "shake", "smoothie", "coffee", "tea", "juice", "cold", "mojito", "lassi", "borhani", "cha",
+    "পানীয়", "জুস", "কফি", "চা", "লাচ্ছি", "বোরহানি", "স্মুদি", "কোল্ড ড্রিংক",
+  ],
+  meat: [
+    "beef", "mutton", "chicken", "meat", "kebab", "gorur", "khasi", "murgi", "steak", "tikka", "grill",
+    "গরু", "গরুর মাংস", "খাসি", "মুরগি", "চিকেন", "কাবাব", "গ্রিল", "টিক্কা", "বিফ",
+  ],
+  budget: [
+    "cheap", "budget", "low cost", "sosta", "affordable", "deal", "offer", "discount", "kom dame", "kom taka",
+    "বাজেট", "কম খরচে", "সস্তা", "অফার", "ডিসকাউন্ট", "ছাড়", "কম দাম",
+  ],
 };
 
-// 🥗 1. AI Calorie & Nutrition Estimator
+// 🥗 Calorie & Nutrition Estimator
 function estimateNutrition(name: string, category: string): {
   calories: number;
   protein: string;
@@ -114,32 +202,32 @@ function estimateNutrition(name: string, category: string): {
 } {
   const lower = `${name} ${category}`.toLowerCase();
 
-  if (lower.includes("biryani") || lower.includes("kacchi") || lower.includes("polao")) {
+  if (lower.includes("biryani") || lower.includes("kacchi") || lower.includes("polao") || lower.includes("বিরিয়ানি")) {
     return { calories: 620, protein: "28g Protein", tag: "Rich & Filling" };
   }
-  if (lower.includes("burger") || lower.includes("sandwich")) {
-    return { calories: 480, protein: "22g Protein", tag: "Energy Packed" };
+  if (lower.includes("burger") || lower.includes("sandwich") || lower.includes("বার্গার")) {
+    return { calories: 480, protein: "22g Protein", tag: "Energy Packed 🍔" };
   }
-  if (lower.includes("pizza") || lower.includes("pasta")) {
-    return { calories: 380, protein: "16g Protein", tag: "Cheesy Comfort" };
+  if (lower.includes("pizza") || lower.includes("pasta") || lower.includes("পিজ্জা")) {
+    return { calories: 380, protein: "16g Protein", tag: "Cheesy Comfort 🧀" };
   }
-  if (lower.includes("salad") || lower.includes("soup") || lower.includes("healthy") || lower.includes("diet")) {
+  if (lower.includes("salad") || lower.includes("soup") || lower.includes("healthy") || lower.includes("diet") || lower.includes("সালাদ")) {
     return { calories: 190, protein: "12g Protein", tag: "Low Calorie 🥗" };
   }
-  if (lower.includes("dessert") || lower.includes("cake") || lower.includes("ice cream") || lower.includes("sweet")) {
+  if (lower.includes("dessert") || lower.includes("cake") || lower.includes("sweet") || lower.includes("মিষ্টি")) {
     return { calories: 280, protein: "6g Protein", tag: "Sweet Treat 🍰" };
   }
-  if (lower.includes("drink") || lower.includes("beverage") || lower.includes("coffee") || lower.includes("juice")) {
-    return { calories: 120, protein: "2g Protein", tag: "Hydrating & Fresh" };
+  if (lower.includes("drink") || lower.includes("coffee") || lower.includes("juice") || lower.includes("চা")) {
+    return { calories: 120, protein: "2g Protein", tag: "Hydrating & Fresh 🥤" };
   }
-  if (lower.includes("chicken") || lower.includes("meat") || lower.includes("beef") || lower.includes("kebab")) {
+  if (lower.includes("chicken") || lower.includes("meat") || lower.includes("beef") || lower.includes("মাংস")) {
     return { calories: 510, protein: "32g Protein", tag: "High Protein 🍗" };
   }
 
   return { calories: 390, protein: "18g Protein", tag: "Balanced Meal" };
 }
 
-// 💡 2. "Why AI Picked This" Smart Highlights
+// 💡 Smart Highlights
 function generateAiHighlight(
   item: any,
   originalPrice: number | null,
@@ -176,7 +264,7 @@ export async function POST(request: Request) {
     // 1. Check for Conversational Chitchat (Greetings / Small Talk)
     const chitchat = detectChitchat(query);
 
-    // 2. Extract constraints
+    // 2. Extract constraints (handles English, Bangla numerals, and Banglish words)
     const detectedBudget = body.maxBudget || extractBudget(query);
 
     // 3. Detect matching intents
@@ -192,7 +280,12 @@ export async function POST(request: Request) {
       lowerQuery.includes("duijon") ||
       lowerQuery.includes("meal for 2") ||
       lowerQuery.includes("package") ||
-      lowerQuery.includes("set meal");
+      lowerQuery.includes("set meal") ||
+      lowerQuery.includes("কম্বো") ||
+      lowerQuery.includes("২ জন") ||
+      lowerQuery.includes("দুইজন") ||
+      lowerQuery.includes("দুজনের") ||
+      lowerQuery.includes("প্যাকেজ");
 
     // 4. Fetch available menu items with restaurant & reviews from Prisma
     const menuItems = await prisma.menuItem.findMany({
@@ -247,7 +340,7 @@ export async function POST(request: Request) {
         }
       }
 
-      // Intent based matching
+      // Intent based matching (handles spicy, biryani, burgers, healthy, etc. in any language)
       for (const intent of detectedIntents) {
         const keywords = INTENT_KEYWORDS[intent] || [];
         for (const kw of keywords) {
@@ -264,9 +357,10 @@ export async function POST(request: Request) {
 
       // Restaurant Rating bonus
       const reviews = item.restaurant?.reviews || [];
-      const restaurantRating = reviews.length > 0
-        ? Number((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1))
-        : 4.8;
+      const restaurantRating =
+        reviews.length > 0
+          ? Number((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1))
+          : 4.8;
       score += restaurantRating * 3;
 
       const nutrition = estimateNutrition(item.name, item.category || "");
@@ -306,6 +400,7 @@ export async function POST(request: Request) {
       if (main1 && side) {
         const total = main1.price + side.price;
         const comboDiscounted = Math.round(total * 0.9); // 10% AI combo deal
+
         comboMeal = {
           title: `Smart Duo Feast (${main1.name} + ${side.name})`,
           dishes: [main1, side],
@@ -325,19 +420,18 @@ export async function POST(request: Request) {
 
     const finalDishes = rankedDishes.length > 0 ? rankedDishes : scoredItems.slice(0, 3);
 
-    // 7. Generate contextual, friendly AI Chef response message
-    let aiMessage = "Here are my top culinary recommendations tailored just for you! 👨‍🍳✨";
-
-    // 💬 If query was pure conversational small-talk, use the conversational response!
+    // 7. If query was pure conversational small-talk, return the conversational response!
     if (chitchat.isChitchat && chitchat.message) {
-      aiMessage = chitchat.message;
       return NextResponse.json({
-        message: aiMessage,
-        dishes: finalDishes.slice(0, 3), // show 3 popular trending dishes alongside
+        message: chitchat.message,
+        dishes: finalDishes.slice(0, 3),
         comboMeal: null,
         followUps: chitchat.followUps || ["Best Biryani 🍛", "Burgers & Fries 🍔", "Deals < ৳150 💰"],
       });
     }
+
+    // 8. Generate Contextual English AI Chef Message
+    let aiMessage = "Here are my top culinary recommendations tailored just for you! 👨‍🍳✨";
 
     if (comboMeal) {
       aiMessage = `🎉 I built a special smart combo pairing for you! Includes main & beverage with an extra 10% combo value:`;
@@ -380,7 +474,11 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("AI Recommendation Error:", error);
     return NextResponse.json(
-      { message: "Oops! AI Chef had a small hiccup. Please try again in a moment.", dishes: [], followUps: [] },
+      {
+        message: "Oops! AI Chef had a small hiccup. Please try again in a moment.",
+        dishes: [],
+        followUps: [],
+      },
       { status: 500 }
     );
   }
