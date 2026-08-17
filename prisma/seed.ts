@@ -40,7 +40,7 @@ const restaurantFoods = [
     description: "Deep-fried crispy spicy chicken fillet served with mayonnaise and sesame bun.",
     price: 210,
     category: "Fast Food & Burger",
-    imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80",
+    imageUrl: "https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=800&q=80",
   },
   {
     name: "Double Cheese Monster Burger",
@@ -104,7 +104,7 @@ const homemadeFoods = [
     description: "Slow-cooked aromatic chinigura rice khichuri paired with spicy homemade tender beef bhuna and egg.",
     price: 260,
     category: "Biryani & Rice",
-    imageUrl: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
+    imageUrl: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
   },
   {
     name: "Shorshe Ilish with Steamed Rice",
@@ -146,7 +146,7 @@ const homemadeFoods = [
     description: "Authentic winter date jaggery rice pudding prepared with cow milk and crushed dry fruits.",
     price: 130,
     category: "Dessert & Bakery",
-    imageUrl: "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&w=800&q=80",
+    imageUrl: "https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&w=800&q=80",
   },
 ];
 

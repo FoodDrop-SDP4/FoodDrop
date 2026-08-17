@@ -16,6 +16,8 @@ import {
   ArrowLeft,
   Sparkles,
   CheckCircle2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { RestaurantType } from "../../../types";
 
@@ -31,6 +33,7 @@ export default function RestaurantRegisterPage() {
   const [ownerName, setOwnerName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState("");
   const [restaurantName, setRestaurantName] = useState("");
   const [address, setAddress] = useState("");
@@ -308,17 +311,44 @@ export default function RestaurantRegisterPage() {
             </div>
           </div>
 
-          {/* Password */}
-          <div className="relative">
-            <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              required
-              type="password"
-              placeholder="Create Password (Min 6 characters)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={inputClassName}
-            />
+          {/* Password with Eye Toggle */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-slate-700">Password</label>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-[11px] font-bold text-orange-600 hover:underline flex items-center gap-1"
+              >
+                {showPassword ? (
+                  <>
+                    <EyeOff className="h-3.5 w-3.5" /> Hide
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-3.5 w-3.5" /> Show
+                  </>
+                )}
+              </button>
+            </div>
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                required
+                type={showPassword ? "text" : "password"}
+                placeholder="Create Password (Min 6 characters)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inputClassName}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           {/* Address */}

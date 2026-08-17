@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Bike, User, Mail, Lock, Phone, MapPin, Loader2, ArrowLeft } from "lucide-react";
+import { Bike, User, Mail, Lock, Phone, MapPin, Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
 
 export default function RiderRegisterPage() {
   const router = useRouter();
@@ -16,6 +16,7 @@ export default function RiderRegisterPage() {
     vehicleNumber: "",
     address: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -161,19 +162,43 @@ export default function RiderRegisterPage() {
               </div>
             </div>
 
-            {/* Password */}
+            {/* Password with Eye Toggle */}
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Password</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-slate-700">Password</label>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-[11px] font-bold text-orange-600 hover:underline flex items-center gap-1"
+                >
+                  {showPassword ? (
+                    <>
+                      <EyeOff className="h-3.5 w-3.5" /> Hide
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="h-3.5 w-3.5" /> Show
+                    </>
+                  )}
+                </button>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-3.5 h-4 w-4 text-slate-400" />
                 <input
                   required
-                  type="password"
-                  placeholder="••••••••"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Min 6 characters"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm font-medium outline-none focus:border-orange-500 focus:bg-white transition"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-11 text-sm font-medium outline-none focus:border-orange-500 focus:bg-white transition"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
 
