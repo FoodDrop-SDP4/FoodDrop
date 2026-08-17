@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
+import { parseItemDescription } from "../../../../lib/menu";
 
 const fallbackRestaurant = {
   id: "fallback-restaurant",
@@ -23,7 +24,7 @@ export async function GET(
       where: { id },
       include: {
         menuItems: true,
-        reviews: true, // 🚀 রেস্টুরেন্টের রিয়েল রিভিউ ডাটা অন্তর্ভুক্ত করা হলো
+        reviews: true,
       },
     });
 
@@ -31,7 +32,27 @@ export async function GET(
       return NextResponse.json({ message: "Restaurant not found!" }, { status: 404 });
     }
 
-    return NextResponse.json(restaurant, { status: 200 });
+    const formattedMenuItems = restaurant.menuItems.map((item) => {
+      const { cleanDescription, originalPrice } = parseItemDescription(item.description);
+      return {
+        ...item,
+        description: cleanDescription,
+        originalPrice: (item as any).originalPrice || originalPrice,
+        restaurant: {
+          id: restaurant.id,
+          name: restaurant.name,
+          restaurantType: restaurant.restaurantType,
+        },
+      };
+    });
+
+    return NextResponse.json(
+      {
+        ...restaurant,
+        menuItems: formattedMenuItems,
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Error fetching restaurant:", error);
     return NextResponse.json(fallbackRestaurant, { status: 200 });

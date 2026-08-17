@@ -94,8 +94,22 @@ export default function FoodDetailModal({
                 )}
               </div>
             </div>
-            <div className="text-right">
-              <span className="text-2xl font-black text-orange-600">৳{item.price}</span>
+            <div className="text-right shrink-0">
+              {item.originalPrice && item.originalPrice > item.price ? (
+                <div className="flex flex-col items-end">
+                  <span className="line-through text-slate-400 text-xs font-normal">
+                    ৳{item.originalPrice}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-2xl font-black text-rose-600">৳{item.price}</span>
+                    <span className="rounded-full bg-rose-100 text-rose-700 font-black text-xs px-2 py-0.5">
+                      {Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)}% OFF
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <span className="text-2xl font-black text-orange-600">৳{item.price}</span>
+              )}
             </div>
           </div>
 
