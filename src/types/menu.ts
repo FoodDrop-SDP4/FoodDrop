@@ -29,6 +29,7 @@ export interface MenuItem {
     id?: string;
     name: string;
     address?: string;
+    restaurantType?: "RESTAURANT" | "HOMEMADE";
     reviews?: Review[];
   };
 }

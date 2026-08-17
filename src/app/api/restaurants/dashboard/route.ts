@@ -85,18 +85,27 @@ export async function GET(request: Request) {
   }
 }
 
-// 🚀 রেস্টুরেন্ট প্রোফাইল নাম ও এড্রেস আপডেট করার API
+// 🚀 রেস্টুরেন্ট প্রোফাইল নাম, এড্রেস ও কিচেন টাইপ আপডেট করার API
 export async function PATCH(request: Request) {
   try {
-    const { restaurantId, name, address } = await request.json();
+    const { restaurantId, name, address, restaurantType } = await request.json();
 
     if (!restaurantId || !name || !address) {
       return NextResponse.json({ message: 'All fields are required!' }, { status: 400 });
     }
 
+    const updateData: { name: string; address: string; restaurantType?: 'RESTAURANT' | 'HOMEMADE' } = {
+      name,
+      address,
+    };
+
+    if (restaurantType === 'HOMEMADE' || restaurantType === 'RESTAURANT') {
+      updateData.restaurantType = restaurantType;
+    }
+
     const updatedRestaurant = await prisma.restaurant.update({
       where: { id: restaurantId },
-      data: { name, address },
+      data: updateData,
     });
 
     return NextResponse.json({ message: 'Profile updated!', restaurant: updatedRestaurant }, { status: 200 });

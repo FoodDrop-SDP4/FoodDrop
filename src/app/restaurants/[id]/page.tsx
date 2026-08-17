@@ -78,9 +78,15 @@ export default function RestaurantDetailPage({ params }: RestaurantDetailPagePro
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
 
         <div className="absolute bottom-6 left-6 right-6 mx-auto max-w-7xl text-white">
-          <span className="rounded-full bg-orange-600 px-3 py-1 text-xs font-bold uppercase tracking-wider">
-            Verified Restaurant
-          </span>
+          {restaurant.restaurantType === "HOMEMADE" ? (
+            <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold uppercase tracking-wider shadow-sm">
+              🏡 Verified Home Kitchen
+            </span>
+          ) : (
+            <span className="rounded-full bg-orange-600 px-3 py-1 text-xs font-bold uppercase tracking-wider shadow-sm">
+              🍽️ Verified Restaurant
+            </span>
+          )}
           <h1 className="mt-2 text-3xl font-black sm:text-5xl">{restaurant.name}</h1>
           <div className="mt-2 flex items-center gap-4 text-sm text-slate-300">
             <span className="flex items-center gap-1">

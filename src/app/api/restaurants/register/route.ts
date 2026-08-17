@@ -6,13 +6,14 @@ import bcrypt from 'bcryptjs';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, ownerName, email, password, phone, address } = body;
+    const { name, ownerName, email, password, phone, address, restaurantType } = body;
 
     if (!email || !password || !name || !ownerName) {
       return NextResponse.json({ message: 'Essential fields are missing!' }, { status: 400 });
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    const validRestaurantType = restaurantType === 'HOMEMADE' ? 'HOMEMADE' : 'RESTAURANT';
 
     // Check if email is already registered
     const existingUser = await prisma.user.findUnique({
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
         data: {
           name: name.trim(), 
           address: address?.trim() || 'Dhaka, Bangladesh',
+          restaurantType: validRestaurantType,
           ownerId: newUser.id, 
         },
       });
