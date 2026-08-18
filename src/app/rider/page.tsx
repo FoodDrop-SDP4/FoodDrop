@@ -23,6 +23,7 @@ import {
   ChevronRight,
   ShieldCheck,
   ShoppingBag,
+  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { User, Order, TodaySummary } from "../../types";
@@ -294,10 +295,10 @@ export default function RiderDashboardPage() {
         </div>
 
         {/* 2. Today's Summary Cards */}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-slate-400">Today's Completed Trips</p>
+              <p className="text-xs font-bold text-slate-400">Completed Trips</p>
               <h3 className="text-2xl font-black text-slate-900 mt-1">{todaySummary.count}</h3>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
@@ -312,6 +313,16 @@ export default function RiderDashboardPage() {
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
               <DollarSign className="h-5 w-5" />
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-slate-400">💵 Cash in Hand</p>
+              <h3 className="text-2xl font-black text-emerald-600 mt-1">৳{todaySummary.cashInHand || 0}</h3>
+            </div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+              <Wallet className="h-5 w-5" />
             </div>
           </div>
 

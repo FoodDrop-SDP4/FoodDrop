@@ -48,7 +48,21 @@ export async function GET(request: Request) {
       },
     });
 
+    const settlements = await prisma.settlement.findMany({
+      where: { riderId: riderId },
+    });
+    const totalSettledAmount = settlements.reduce((sum, item) => sum + item.amount, 0);
+
     const todayEarnings = todaysOrders.reduce((sum, order) => sum + (order.deliveryFee || 60), 0);
+
+    const allDeliveredOrders = await prisma.order.findMany({
+      where: { riderId: riderId, status: "DELIVERED" },
+    });
+    const totalCashCollected = allDeliveredOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const totalAllEarnings = allDeliveredOrders.reduce((sum, order) => sum + (order.deliveryFee || 60), 0);
+
+    const currentCashInHand = Math.max(0, totalCashCollected - totalSettledAmount);
+    const currentPayable = Math.max(0, totalCashCollected - totalAllEarnings - totalSettledAmount);
 
     return NextResponse.json({
       activeOrders: activeOrders || [],
@@ -56,6 +70,8 @@ export async function GET(request: Request) {
       todaySummary: {
         count: todaysOrders.length,
         earnings: todayEarnings,
+        cashInHand: currentCashInHand,
+        payableBalance: currentPayable,
       },
     });
   } catch (error) {

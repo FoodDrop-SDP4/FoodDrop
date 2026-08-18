@@ -56,6 +56,18 @@ export interface Order {
 export interface TodaySummary {
   count: number;
   earnings: number;
+  cashInHand?: number;
+  payableBalance?: number;
+}
+
+export interface CashLedgerSummary {
+  cashInHand: number;
+  todayCashInHand: number;
+  riderEarnings: number;
+  payableBalance: number;
+  cashLimit: number;
+  limitUsagePercentage: number;
+  isLimitExceeded: boolean;
 }
 
 export interface RiderEarningsSummary {
@@ -63,11 +75,20 @@ export interface RiderEarningsSummary {
   thisWeek: number;
   total: number;
   totalDeliveries: number;
+  cashLedger?: CashLedgerSummary;
 }
 
 export interface RiderHistoryResponse {
   orders: Order[];
+  settlements?: Array<{
+    id: string;
+    amount: number;
+    method: string;
+    transactionId?: string | null;
+    createdAt: string;
+  }>;
   earnings: RiderEarningsSummary;
+  cashLedger?: CashLedgerSummary;
 }
 
 export interface RestaurantDashboardData {
