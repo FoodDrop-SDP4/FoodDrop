@@ -274,8 +274,13 @@ export default function RiderDashboardPage() {
               <Bike className="h-7 w-7" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-slate-900">{rider?.name}</h1>
-              <p className="text-xs font-semibold text-slate-500">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-black text-slate-900">{rider?.name}</h1>
+                <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
+                  ⭐ Verified Partner
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-slate-500 mt-0.5">
                 {rider?.vehicleType === "Motorcycle"
                   ? `🏍️ Motorcycle • ${rider?.vehicleNumber || "Verified Registration"}`
                   : rider?.vehicleType === "Bicycle"

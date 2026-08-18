@@ -25,6 +25,15 @@ import {
   AlertTriangle,
   Receipt,
   Sparkles,
+  Trophy,
+  Award,
+  Zap,
+  Flame,
+  Gift,
+  Target,
+  Crown,
+  Lock,
+  Check,
 } from "lucide-react";
 import Link from "next/link";
 import { User, Order, RiderHistoryResponse } from "../../../types";
@@ -45,6 +54,9 @@ export default function RiderProfilePage() {
   const [transactionId, setTransactionId] = useState("");
   const [isSubmittingSettle, setIsSubmittingSettle] = useState(false);
   const [settleSuccessMsg, setSettleSuccessMsg] = useState<string | null>(null);
+
+  // Claimed Quest State
+  const [claimedQuests, setClaimedQuests] = useState<Record<string, boolean>>({});
 
   const fetchHistory = (riderId: string) => {
     fetch(`/api/rider/history?riderId=${riderId}`)
@@ -74,7 +86,27 @@ export default function RiderProfilePage() {
 
     setRider(user);
     fetchHistory(user.id);
+
+    // Load claimed quests from localStorage
+    const savedQuests = localStorage.getItem(`rider_quests_${user.id}`);
+    if (savedQuests) {
+      try {
+        setClaimedQuests(JSON.parse(savedQuests));
+      } catch (e) {}
+    }
   }, [router]);
+
+  // Claim Quest Reward
+  const handleClaimQuest = (questId: string, rewardText: string) => {
+    playDeliveryCompleteSound();
+    triggerFireworks();
+    const updated = { ...claimedQuests, [questId]: true };
+    setClaimedQuests(updated);
+    if (rider?.id) {
+      localStorage.setItem(`rider_quests_${rider.id}`, JSON.stringify(updated));
+    }
+    alert(`🎉 Congratulations! You claimed ${rewardText}! Keep delivering!`);
+  };
 
   // Handle Settlement Submission
   const handleSettleSubmit = async (e: React.FormEvent) => {
@@ -125,6 +157,156 @@ export default function RiderProfilePage() {
     );
   }
 
+  const totalDeliveries = historyData?.earnings?.totalDeliveries || 0;
+  const riderRating = rider?.rating || 5.0;
+
+  // 🏆 Dynamic Tier System Calculation
+  const currentTier =
+    totalDeliveries >= 90 && riderRating >= 4.8
+      ? {
+          name: "Platinum Legend",
+          tierLevel: "TIER 4",
+          icon: "💎",
+          badgeBg: "bg-cyan-100 text-cyan-900 border-cyan-300",
+          gradient: "from-cyan-500 via-blue-600 to-indigo-700",
+          bonus: "+৳15 Bonus per Delivery",
+          min: 90,
+          max: 150,
+          nextTier: "Max Tier Reached",
+          perk: "VIP Priority Dispatch & 24/7 Helpline",
+        }
+      : totalDeliveries >= 40
+      ? {
+          name: "Gold Partner",
+          tierLevel: "TIER 3",
+          icon: "🥇",
+          badgeBg: "bg-amber-100 text-amber-900 border-amber-300",
+          gradient: "from-amber-400 via-orange-500 to-yellow-600",
+          bonus: "+৳10 Bonus per Delivery",
+          min: 40,
+          max: 90,
+          nextTier: "Platinum Legend (90 Trips & 4.8 Rating)",
+          perk: "Priority Multi-Stack Order Opportunities",
+        }
+      : totalDeliveries >= 15
+      ? {
+          name: "Silver Partner",
+          tierLevel: "TIER 2",
+          icon: "🥈",
+          badgeBg: "bg-slate-200 text-slate-900 border-slate-300",
+          gradient: "from-slate-400 via-slate-500 to-zinc-600",
+          bonus: "+৳5 Bonus per Delivery",
+          min: 15,
+          max: 40,
+          nextTier: "Gold Partner (40 Trips)",
+          perk: "Multi-Stack Batch Trips Unlocked",
+        }
+      : {
+          name: "Bronze Starter",
+          tierLevel: "TIER 1",
+          icon: "🥉",
+          badgeBg: "bg-amber-100 text-amber-900 border-amber-200",
+          gradient: "from-amber-700 to-amber-900",
+          bonus: "Base Payout",
+          min: 0,
+          max: 15,
+          nextTier: "Silver Partner (15 Trips for +৳5 Bonus)",
+          perk: "Complete 15 deliveries to unlock Tier 2",
+        };
+
+  const tierProgress = Math.min(
+    100,
+    Math.max(0, Math.round(((totalDeliveries - currentTier.min) / (currentTier.max - currentTier.min)) * 100))
+  );
+
+  // 🎯 Today's Quests & Challenges
+  const todayDeliveriesCount = historyData?.orders?.filter((o: Order) => {
+    if (!o.updatedAt) return false;
+    return new Date(o.updatedAt).toDateString() === new Date().toDateString();
+  }).length || 0;
+
+  const quests = [
+    {
+      id: "quest-1",
+      title: "Daily Striker",
+      description: "Complete 3 deliveries today",
+      target: 3,
+      current: Math.min(3, todayDeliveriesCount),
+      reward: "+৳50 Cash Bonus",
+      completed: todayDeliveriesCount >= 3,
+    },
+    {
+      id: "quest-2",
+      title: "Rush Hour Champion",
+      description: "Complete 6 deliveries today",
+      target: 6,
+      current: Math.min(6, todayDeliveriesCount),
+      reward: "+৳120 Cash Bonus",
+      completed: todayDeliveriesCount >= 6,
+    },
+    {
+      id: "quest-3",
+      title: "5-Star Excellence",
+      description: "Maintain a 4.8+ rating score",
+      target: 4.8,
+      current: riderRating,
+      reward: "⭐ VIP Priority Dispatch",
+      completed: riderRating >= 4.8,
+    },
+  ];
+
+  // 🎖️ Achievement Badges
+  const badges = [
+    {
+      id: "b1",
+      name: "First Flight",
+      icon: "🚀",
+      desc: "Completed your first order",
+      unlocked: totalDeliveries >= 1,
+      req: "1 Trip",
+    },
+    {
+      id: "b2",
+      name: "Speed Striker",
+      icon: "⚡",
+      desc: "Rapid delivery within 20 mins",
+      unlocked: totalDeliveries >= 5,
+      req: "5 Trips",
+    },
+    {
+      id: "b3",
+      name: "5-Star Master",
+      icon: "⭐",
+      desc: "Achieved top customer rating",
+      unlocked: riderRating >= 4.9 && totalDeliveries >= 5,
+      req: "4.9+ Rating",
+    },
+    {
+      id: "b4",
+      name: "Multi-Stack Pro",
+      icon: "📦",
+      desc: "Delivered stacked batched orders",
+      unlocked: totalDeliveries >= 10,
+      req: "10 Trips",
+    },
+    {
+      id: "b5",
+      name: "Weekend Warrior",
+      icon: "🔥",
+      desc: "Active on weekend peak hours",
+      unlocked: totalDeliveries >= 20,
+      req: "20 Trips",
+    },
+    {
+      id: "b6",
+      name: "Night Owl",
+      icon: "🌙",
+      desc: "Delivered late night food cravings",
+      unlocked: totalDeliveries >= 30,
+      req: "30 Trips",
+    },
+  ];
+
   const cashLedger = historyData?.cashLedger || {
     cashInHand: 0,
     todayCashInHand: 0,
@@ -157,14 +339,20 @@ export default function RiderProfilePage() {
           <ArrowLeft className="h-4 w-4" /> Back to Rider Dashboard
         </Link>
 
-        {/* 1. Rider Profile Card */}
+        {/* 1. Rider Hero Card with Dynamic Tier Badge */}
         <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm flex flex-wrap items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-100 text-orange-600 font-black text-xl shadow-md shadow-orange-100">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-100 text-orange-600 font-black text-xl shadow-md shadow-orange-100 relative">
               <Bike className="h-8 w-8" />
+              <span className="absolute -bottom-1 -right-1 text-sm">{currentTier.icon}</span>
             </div>
             <div>
-              <h1 className="text-2xl font-black text-slate-900">{rider?.name}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-black text-slate-900">{rider?.name}</h1>
+                <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-full border shadow-2xs ${currentTier.badgeBg}`}>
+                  {currentTier.icon} {currentTier.name}
+                </span>
+              </div>
               <p className="text-xs font-semibold text-slate-500 mt-0.5">
                 {rider?.vehicleType === "Motorcycle"
                   ? `🏍️ Motorcycle • ${rider?.vehicleNumber || "Verified Registration"}`
@@ -185,11 +373,188 @@ export default function RiderProfilePage() {
 
           <div className="text-right">
             <p className="text-xs font-bold text-slate-400">Total Completed</p>
-            <p className="text-2xl font-black text-slate-900">{historyData?.earnings?.totalDeliveries || 0} Orders</p>
+            <p className="text-2xl font-black text-slate-900">{totalDeliveries} Orders</p>
           </div>
         </div>
 
-        {/* 2. 💵 COD Cash in Hand & Float Ledger (Fintech Section) */}
+        {/* 2. 🏆 RIDER GAMIFICATION HUB (Tier Progress & Perks) */}
+        <div className="rounded-3xl border-2 border-purple-500/80 bg-white p-6 shadow-xl space-y-6 relative overflow-hidden">
+          
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 px-3.5 py-1 text-xs font-black text-white shadow-sm">
+                  <Trophy className="h-3.5 w-3.5 text-amber-300" />
+                  Rider Tier & Rewards Hub
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1 font-medium">
+                Deliver more trips to level up tiers and unlock extra cash bonuses!
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 rounded-2xl bg-purple-50 px-4 py-2 border border-purple-200">
+              <span className="text-xs font-bold text-purple-700">Active Tier Perk:</span>
+              <span className="text-xs font-black text-purple-900">{currentTier.bonus}</span>
+            </div>
+          </div>
+
+          {/* Tier Progress Bar Card */}
+          <div className="rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 text-white p-5 space-y-3 shadow-md relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{currentTier.icon}</span>
+                <div>
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                    {currentTier.tierLevel}
+                  </span>
+                  <h3 className="text-lg font-black text-white">{currentTier.name}</h3>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-bold text-purple-300">Next Target:</span>
+                <p className="text-xs font-black text-white">{currentTier.nextTier}</p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+                <span>Tier Progress</span>
+                <span>{totalDeliveries} / {currentTier.max} Deliveries ({tierProgress}%)</span>
+              </div>
+              <div className="h-3 w-full rounded-full bg-white/20 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-400 via-orange-500 to-purple-500 transition-all duration-500 rounded-full"
+                  style={{ width: `${tierProgress}%` }}
+                />
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-300 font-medium flex items-center gap-1.5 pt-1">
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              <span>Current Perks: {currentTier.perk}</span>
+            </p>
+          </div>
+
+          {/* 🎯 Daily Quests & Missions */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+                <Target className="h-4 w-4 text-orange-600" />
+                Today's Quests & Challenges
+              </h3>
+              <span className="text-[11px] font-bold text-slate-400">Resets daily at 12:00 AM</span>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              {quests.map((quest) => {
+                const isClaimed = claimedQuests[quest.id];
+                const progressPct = Math.min(100, Math.round((quest.current / quest.target) * 100));
+
+                return (
+                  <div
+                    key={quest.id}
+                    className={`rounded-2xl p-4 border transition relative ${
+                      quest.completed
+                        ? "bg-emerald-50/70 border-emerald-300 shadow-sm"
+                        : "bg-slate-50 border-slate-200"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-black text-slate-900">{quest.title}</span>
+                      <span
+                        className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                          quest.completed
+                            ? "bg-emerald-200 text-emerald-900"
+                            : "bg-slate-200 text-slate-700"
+                        }`}
+                      >
+                        {quest.reward}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 font-medium mb-2.5">
+                      {quest.description}
+                    </p>
+
+                    <div className="space-y-1 mb-3">
+                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
+                        <span>Progress</span>
+                        <span>{quest.current} / {quest.target}</span>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${
+                            quest.completed ? "bg-emerald-500" : "bg-orange-500"
+                          }`}
+                          style={{ width: `${progressPct}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {quest.completed ? (
+                      isClaimed ? (
+                        <div className="w-full py-1.5 text-center text-xs font-bold text-emerald-700 bg-emerald-100 rounded-xl flex items-center justify-center gap-1">
+                          <Check className="h-3.5 w-3.5" /> Claimed ✓
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleClaimQuest(quest.id, quest.reward)}
+                          className="w-full py-2 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 animate-bounce"
+                        >
+                          <Gift className="h-3.5 w-3.5" /> Claim Reward! 🎁
+                        </button>
+                      )
+                    ) : (
+                      <div className="w-full py-1.5 text-center text-[11px] font-bold text-slate-400 bg-slate-100 rounded-xl">
+                        In Progress
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 🎖️ Achievement Badges Showcase */}
+          <div className="space-y-3 pt-2">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+              <Award className="h-4 w-4 text-purple-600" />
+              Achievement Badges ({badges.filter((b) => b.unlocked).length}/{badges.length} Unlocked)
+            </h3>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+              {badges.map((badge) => (
+                <div
+                  key={badge.id}
+                  className={`rounded-2xl p-3 text-center border transition relative ${
+                    badge.unlocked
+                      ? "bg-white border-purple-300 shadow-sm hover:scale-105"
+                      : "bg-slate-100/70 border-slate-200 opacity-60"
+                  }`}
+                >
+                  <div
+                    className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl text-2xl mb-1.5 shadow-xs ${
+                      badge.unlocked
+                        ? "bg-purple-100 text-purple-700"
+                        : "bg-slate-200 text-slate-400 grayscale"
+                    }`}
+                  >
+                    {badge.unlocked ? badge.icon : <Lock className="h-5 w-5 text-slate-400" />}
+                  </div>
+                  <h4 className="text-xs font-black text-slate-900 truncate">{badge.name}</h4>
+                  <p className="text-[10px] text-slate-500 font-medium mt-0.5 line-clamp-1">
+                    {badge.unlocked ? badge.desc : `Req: ${badge.req}`}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+
+        {/* 3. 💵 COD Cash in Hand & Float Ledger (Fintech Section) */}
         <div className="rounded-3xl border-2 border-emerald-500/80 bg-white p-6 shadow-xl space-y-6 relative overflow-hidden">
           
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
@@ -326,7 +691,7 @@ export default function RiderProfilePage() {
 
         </div>
 
-        {/* 3. Earnings Timeline Overview */}
+        {/* 4. Earnings Timeline Overview */}
         <div className="space-y-3">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <DollarSign className="h-5 w-5 text-orange-600" /> Earnings History
@@ -350,7 +715,7 @@ export default function RiderProfilePage() {
           </div>
         </div>
 
-        {/* 4. Delivery History with Filters */}
+        {/* 5. Delivery History with Filters */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -403,7 +768,7 @@ export default function RiderProfilePage() {
           )}
         </div>
 
-        {/* 5. Support Section */}
+        {/* 6. Support Section */}
         <div className="rounded-3xl border border-slate-200/80 bg-orange-50/50 p-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
@@ -421,7 +786,7 @@ export default function RiderProfilePage() {
 
       </div>
 
-      {/* 6. 📱 Interactive Settlement Modal */}
+      {/* 7. 📱 Interactive Settlement Modal */}
       {isSettleModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs font-sans">
           <div className="max-w-md w-full bg-white rounded-3xl p-6 space-y-5 shadow-2xl border border-slate-100 relative">
