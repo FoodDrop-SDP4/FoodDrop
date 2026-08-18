@@ -3,7 +3,7 @@
 
 import { useCartStore } from "../../store/useCartStore";
 import { useRouter } from "next/navigation";
-import { X, ShoppingBag, Plus, Minus, Trash2, ArrowRight } from "lucide-react";
+import { X, ShoppingBag, Plus, Minus, Trash2, ArrowRight, Utensils } from "lucide-react";
 
 export default function CartDrawer() {
   const { cart, isOpen, closeCart, updateQuantity, removeFromCart } = useCartStore();
@@ -26,6 +26,11 @@ export default function CartDrawer() {
     }
   };
 
+  const handleBrowseFoods = () => {
+    closeCart();
+    router.push("/");
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden font-sans">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={closeCart} />
@@ -45,10 +50,24 @@ export default function CartDrawer() {
 
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {cart.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center text-center text-slate-400">
-                <ShoppingBag className="h-16 w-16 stroke-1 text-slate-300 mb-3" />
-                <p className="font-bold text-slate-600">Your cart is empty</p>
-                <p className="text-xs text-slate-400 mt-1">Add items from restaurants to get started!</p>
+              <div className="flex h-full flex-col items-center justify-center text-center p-6 space-y-4">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-orange-50 text-orange-500 shadow-inner">
+                  <ShoppingBag className="h-10 w-10 stroke-[1.5]" />
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800 text-lg">Your cart is empty</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-[220px] mx-auto">
+                    Looks like you haven't added anything to your cart yet.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleBrowseFoods}
+                  className="flex items-center gap-2 rounded-2xl bg-orange-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange-600/30 transition hover:bg-orange-700 active:scale-95 cursor-pointer"
+                >
+                  <Utensils className="h-4 w-4" />
+                  <span>Browse Foods</span>
+                </button>
               </div>
             ) : (
               cart.map((item) => (
