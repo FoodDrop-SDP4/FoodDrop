@@ -48,6 +48,11 @@ export default function CheckoutPage() {
   const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Promo Code State
   const [promoInput, setPromoInput] = useState("");
@@ -268,6 +273,14 @@ export default function CheckoutPage() {
             </Link>
           </div>
         </div>
+      </main>
+    );
+  }
+
+  if (!mounted) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
       </main>
     );
   }
