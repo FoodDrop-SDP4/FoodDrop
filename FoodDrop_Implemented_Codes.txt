@@ -1,0 +1,972 @@
+================================================================================
+                      FOODDROP - FULL IMPLEMENTED CODE ARCHIVE
+================================================================================
+Generated at: 2026-08-20
+Project: FoodDrop Food Delivery & Restaurant Management Platform
+Framework: Next.js (App Router), TypeScript, Tailwind CSS, Prisma ORM, PostgreSQL
+
+TABLE OF CONTENTS:
+--------------------------------------------------------------------------------
+1.  [PWA] src/app/manifest.ts
+2.  [PWA] public/sw.js
+3.  [PWA] src/components/common/PWAInstallPrompt.tsx
+4.  [DATABASE] prisma/schema.prisma
+5.  [TYPES] src/types/order.ts
+6.  [LAYOUT] src/app/layout.tsx
+7.  [API - SETTLEMENT] src/app/api/rider/settle/route.ts
+8.  [API - HISTORY] src/app/api/rider/history/route.ts
+9.  [API - RIDER ORDERS] src/app/api/orders/rider/route.ts
+10. [API - ACCEPT ORDER] src/app/api/rider/accept-order/route.ts
+11. [API - ORDER BY ID] src/app/api/orders/[id]/route.ts
+12. [API - USER ORDERS] src/app/api/orders/user/route.ts
+13. [API - GENERAL ORDERS] src/app/api/orders/route.ts
+14. [RIDER GAMIFICATION & LEDGER] src/app/rider/profile/page.tsx
+15. [RIDER COCKPIT & LIVE PIN] src/app/rider/page.tsx
+16. [CUSTOMER LIVE DELIVERY PROMPT] src/components/orders/LiveCustomerDeliveryPrompt.tsx
+17. [ORDER TRACKING VIEW] src/components/tracking/OrderTrackingView.tsx
+18. [ORDER CARD] src/components/orders/OrderCard.tsx
+19. [CART STORE PERSISTENCE] src/store/useCartStore.ts
+================================================================================
+
+
+================================================================================
+1. [PWA] src/app/manifest.ts
+================================================================================
+import type { MetadataRoute } from "next";
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: "FoodDrop - Fast Food & Delivery Platform",
+    short_name: "FoodDrop",
+    description: "Premium Food Delivery and Restaurant Management Platform in Bangladesh",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#ffffff",
+    theme_color: "#ea580c",
+    orientation: "portrait-primary",
+    icons: [
+      {
+        src: "/icons/icon-192x192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icons/icon-512x512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icons/icon-maskable-512x512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+    ],
+    shortcuts: [
+      {
+        name: "Browse Food",
+        short_name: "Browse",
+        url: "/",
+        icons: [{ src: "/icons/icon-192x192.png", sizes: "192x192" }],
+      },
+      {
+        name: "Rider Cockpit",
+        short_name: "Rider",
+        url: "/rider",
+        icons: [{ src: "/icons/icon-192x192.png", sizes: "192x192" }],
+      },
+      {
+        name: "Restaurant Dashboard",
+        short_name: "Kitchen",
+        url: "/restaurant",
+        icons: [{ src: "/icons/icon-192x192.png", sizes: "192x192" }],
+      },
+    ],
+  };
+}
+
+
+================================================================================
+2. [PWA] public/sw.js
+================================================================================
+// FoodDrop Universal Progressive Web App Service Worker
+const CACHE_NAME = "fooddrop-cache-v1";
+const STATIC_ASSETS = [
+  "/",
+  "/favicon.ico",
+  "/apple-touch-icon.png",
+  "/icons/icon-192x192.png",
+  "/icons/icon-512x512.png"
+];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(STATIC_ASSETS);
+    })
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+      );
+    })
+  );
+  self.clients.claim();
+});
+
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/_next/webpack-hmr")) {
+    return;
+  }
+
+  event.respondWith(
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === "basic") {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) return cachedResponse;
+          if (event.request.mode === "navigate") {
+            return caches.match("/");
+          }
+          return null;
+        });
+      })
+  );
+});
+
+
+================================================================================
+3. [DATABASE] prisma/schema.prisma
+================================================================================
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String       @id @default(uuid())
+  name          String
+  email         String       @unique
+  password      String
+  phone         String?
+  role          Role         @default(CUSTOMER)
+  vehicleType   String?
+  nid           String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  isOnline      Boolean      @default(false)
+  profilePic    String?
+  rating        Float        @default(5.0)
+  totalReviews  Int          @default(0)
+  vehicleNumber String?
+  latitude      Float?
+  longitude     Float?
+  addresses     Address[]
+  Message       Message[]
+  orders        Order[]      @relation("CustomerOrders")
+  deliveries    Order[]      @relation("RiderDeliveries")
+  restaurants   Restaurant[]
+  reviews       Review[]
+  settlements   Settlement[]
+}
+
+model PendingRegistration {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  password     String
+  phone        String
+  vehicleType  String?
+  nid          String?
+  otpCode      String
+  otpExpiresAt DateTime
+  createdAt    DateTime @default(now())
+  role         Role
+}
+
+model Restaurant {
+  id             String         @id @default(uuid())
+  name           String
+  address        String
+  isOnline       Boolean        @default(true)
+  ownerId        String
+  createdAt      DateTime       @default(now())
+  restaurantType RestaurantType @default(RESTAURANT)
+  menuItems      MenuItem[]
+  orders         Order[]
+  owner          User           @relation(fields: [ownerId], references: [id])
+  reviews        Review[]
+}
+
+model MenuItem {
+  id           String      @id @default(uuid())
+  name         String
+  description  String?
+  price        Float
+  imageUrl     String?
+  isAvailable  Boolean     @default(true)
+  restaurantId String
+  category     String?     @default("Fast Food & Burger")
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
+  orderItems   OrderItem[]
+  reviews      Review[]
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  totalAmount     Float
+  status          OrderStatus @default(PENDING)
+  deliveryAddress String
+  customerId      String
+  restaurantId    String
+  riderId         String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deliveryFee     Float       @default(60)
+  contactPhone    String?
+  paymentMethod   String?
+  transactionId   String?
+  Message         Message[]
+  customer        User        @relation("CustomerOrders", fields: [customerId], references: [id])
+  restaurant      Restaurant  @relation(fields: [restaurantId], references: [id])
+  rider           User?       @relation("RiderDeliveries", fields: [riderId], references: [id])
+  orderItems      OrderItem[]
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  quantity   Int
+  orderId    String
+  menuItemId String
+  price      Float?
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  order      Order    @relation(fields: [orderId], references: [id])
+}
+
+model Address {
+  id        String   @id @default(uuid())
+  userId    String
+  label     String
+  address   String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id           String     @id @default(uuid())
+  rating       Int
+  comment      String?
+  createdAt    DateTime   @default(now())
+  userId       String
+  restaurantId String
+  menuItemId   String?
+  menuItem     MenuItem?  @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  orderId   String
+  senderId  String
+  content   String
+  createdAt DateTime @default(now())
+  Order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  User      User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+// 7. Rider Cash Settlement Model (COD Float Clearance)
+model Settlement {
+  id            String   @id @default(uuid())
+  riderId       String
+  amount        Float
+  method        String   // "BKASH" | "NAGAD" | "OFFICE"
+  transactionId String?
+  createdAt     DateTime @default(now())
+
+  // Relations
+  rider         User     @relation(fields: [riderId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  CUSTOMER
+  RESTAURANT_OWNER
+  RIDER
+}
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  READY_FOR_PICKUP
+  ACCEPTED_BY_RIDER
+  ON_THE_WAY
+  ARRIVED
+  DELIVERED
+  CANCELLED
+}
+
+enum RestaurantType {
+  RESTAURANT
+  HOMEMADE
+}
+
+
+================================================================================
+4. [TYPES] src/types/order.ts
+================================================================================
+import { User } from "./user";
+import { MenuItem } from "./menu";
+import { Restaurant } from "./restaurant";
+
+export type OrderStatus =
+  | "PENDING"
+  | "PREPARING"
+  | "READY_FOR_PICKUP"
+  | "ACCEPTED_BY_RIDER"
+  | "ON_THE_WAY"
+  | "ARRIVED"
+  | "DELIVERED"
+  | "CANCELLED";
+
+export interface OrderItem {
+  id?: string;
+  quantity: number;
+  menuItemId?: string;
+  menuItem: {
+    id?: string;
+    name: string;
+    price: number;
+    imageUrl?: string | null;
+    category?: string | null;
+  };
+}
+
+export interface Order {
+  id: string;
+  totalAmount: number;
+  deliveryFee?: number;
+  status: OrderStatus;
+  deliveryAddress: string;
+  contactPhone?: string | null;
+  paymentMethod?: string | null;
+  transactionId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  restaurantId?: string;
+  restaurant?: Restaurant;
+  customerId?: string;
+  customer?: {
+    id?: string;
+    name: string;
+    email?: string;
+    phone?: string | null;
+  };
+  rider?: User | null;
+  orderItems: OrderItem[];
+}
+
+export interface TodaySummary {
+  count: number;
+  earnings: number;
+  cashInHand?: number;
+  payableBalance?: number;
+}
+
+export interface CashLedgerSummary {
+  cashInHand: number;
+  todayCashInHand: number;
+  riderEarnings: number;
+  payableBalance: number;
+  cashLimit: number;
+  limitUsagePercentage: number;
+  isLimitExceeded: boolean;
+}
+
+export interface RiderEarningsSummary {
+  today: number;
+  thisWeek: number;
+  total: number;
+  totalDeliveries: number;
+  cashLedger?: CashLedgerSummary;
+}
+
+export interface RiderHistoryResponse {
+  orders: Order[];
+  settlements?: Array<{
+    id: string;
+    amount: number;
+    method: string;
+    transactionId?: string | null;
+    createdAt: string;
+  }>;
+  earnings: RiderEarningsSummary;
+  cashLedger?: CashLedgerSummary;
+}
+
+
+================================================================================
+5. [API - SETTLEMENT] src/app/api/rider/settle/route.ts
+================================================================================
+import { NextResponse } from "next/server";
+import { prisma } from "../../../../lib/prisma";
+
+export async function POST(request: Request) {
+  try {
+    const { riderId, amount, method, transactionId } = await request.json();
+
+    if (!riderId || amount === undefined || amount === null) {
+      return NextResponse.json(
+        { message: "Rider ID and settlement amount are required!" },
+        { status: 400 }
+      );
+    }
+
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      return NextResponse.json(
+        { message: "Please provide a valid settlement amount (greater than 0)!" },
+        { status: 400 }
+      );
+    }
+
+    // Verify rider exists
+    const rider = await prisma.user.findUnique({
+      where: { id: riderId },
+    });
+
+    if (!rider || rider.role !== "RIDER") {
+      return NextResponse.json(
+        { message: "Rider not found or invalid account!" },
+        { status: 404 }
+      );
+    }
+
+    // 🔒 1. Calculate actual current payable float from live database orders & settlements
+    const allDeliveredOrders = await prisma.order.findMany({
+      where: { riderId: riderId, status: "DELIVERED" },
+    });
+    const totalGrossCash = allDeliveredOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const totalEarnings = allDeliveredOrders.reduce((sum, order) => sum + (order.deliveryFee || 60), 0);
+
+    const existingSettlements = await prisma.settlement.findMany({
+      where: { riderId: riderId },
+    });
+    const totalSettled = existingSettlements.reduce((sum, item) => sum + item.amount, 0);
+
+    const currentPayableBalance = Math.max(0, totalGrossCash - totalEarnings - totalSettled);
+
+    // ❌ Validation: If no payable balance exists (0 due)
+    if (currentPayableBalance <= 0) {
+      return NextResponse.json(
+        { message: "আপনার কোনো প্রদেয় বকেয়া ক্যাশ নেই (Payable Balance: ৳0)। অতিরিক্ত টাকা ডিপোজিট করার প্রয়োজন নেই।" },
+        { status: 400 }
+      );
+    }
+
+    // ❌ Validation: Cannot deposit more than payable balance
+    if (numAmount > currentPayableBalance) {
+      return NextResponse.json(
+        {
+          message: `আপনি আপনার প্রদেয় বকেয়ার (৳${currentPayableBalance}) চেয়ে বেশি ডিপোজিট করতে পারবেন না! অনুগ্রহ করে সর্বোচ্চ ৳${currentPayableBalance} ডিপোজিট করুন।`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // 2. Save settlement record into PostgreSQL database
+    const settlement = await prisma.settlement.create({
+      data: {
+        riderId: riderId,
+        amount: numAmount,
+        method: method || "BKASH",
+        transactionId: transactionId || "TXN" + Date.now().toString().slice(-8),
+      },
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: `৳${numAmount} cash settlement successfully deposited via ${method || "Digital Payment"}!`,
+        settlement,
+        remainingPayable: Math.max(0, currentPayableBalance - numAmount),
+      },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    console.error("Settlement error:", error);
+    return NextResponse.json(
+      { message: "Failed to process settlement." },
+      { status: 500 }
+    );
+  }
+}
+
+
+================================================================================
+6. [API - RIDER ORDERS] src/app/api/orders/rider/route.ts
+================================================================================
+import { NextResponse } from "next/server";
+import { prisma } from "../../../../lib/prisma";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+// 🚀 GET: রাইডারের বর্তমান অ্যাক্টিভ অর্ডার এবং আজকের সামারি ফেচ করা
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const riderId = searchParams.get("riderId");
+
+    if (!riderId) {
+      return NextResponse.json({ message: "Rider ID is required!" }, { status: 400 });
+    }
+
+    // ১. রাইডারের সব রানিং অ্যাক্টিভ অর্ডার ডাটাবেজ থেকে খোঁজা (Stacked Orders Support)
+    const activeOrders = await prisma.order.findMany({
+      where: {
+        riderId: riderId,
+        status: {
+          // ⚠️ এই স্ট্যাটাসগুলোর যেকোনো ১টি থাকলে সেটি অ্যাক্টিভ অর্ডার হিসেবে স্ক্রিনে দেখাবে
+          in: ["ACCEPTED_BY_RIDER", "PREPARING", "READY_FOR_PICKUP", "ON_THE_WAY", "ARRIVED"],
+        },
+      },
+      include: {
+        restaurant: true,
+        customer: true, // কাস্টমারের নাম ও ফোন নাম্বার কল করার জন্য
+        orderItems: {
+          include: {
+            menuItem: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+    });
+
+    // ২. আজকের আয় এবং মোট ডেলিভারি হিসাব করা
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todaysOrders = await prisma.order.findMany({
+      where: {
+        riderId: riderId,
+        status: "DELIVERED",
+        updatedAt: {
+          gte: today,
+        },
+      },
+    });
+
+    const settlements = await prisma.settlement.findMany({
+      where: { riderId: riderId },
+    });
+    const totalSettledAmount = settlements.reduce((sum, item) => sum + item.amount, 0);
+
+    const todayEarnings = todaysOrders.reduce((sum, order) => sum + (order.deliveryFee || 60), 0);
+
+    const allDeliveredOrders = await prisma.order.findMany({
+      where: { riderId: riderId, status: "DELIVERED" },
+    });
+    const totalCashCollected = allDeliveredOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const totalAllEarnings = allDeliveredOrders.reduce((sum, order) => sum + (order.deliveryFee || 60), 0);
+
+    const currentCashInHand = Math.max(0, totalCashCollected - totalSettledAmount);
+    const currentPayable = Math.max(0, totalCashCollected - totalAllEarnings - totalSettledAmount);
+
+    return NextResponse.json({
+      activeOrders: activeOrders || [],
+      activeOrder: activeOrders.length > 0 ? activeOrders[0] : null,
+      todaySummary: {
+        count: todaysOrders.length,
+        earnings: todayEarnings,
+        cashInHand: currentCashInHand,
+        payableBalance: currentPayable,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching rider active order:", error);
+    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+// 🚀 PATCH: "Mark as Picked Up" বা "Mark as Delivered" বাটনে চাপলে স্ট্যাটাস আপডেট করা
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { orderId, status } = body;
+
+    if (!orderId || !status) {
+      return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
+    }
+
+    // 🔒 রান্নার আগে রাইডার পিকআপ করতে পারবে না - ভ্যালিডেশন
+    if (status === "ON_THE_WAY") {
+      const existingOrder = await prisma.order.findUnique({
+        where: { id: orderId },
+      });
+
+      if (!existingOrder) {
+        return NextResponse.json({ message: "Order not found!" }, { status: 404 });
+      }
+
+      if (existingOrder.status !== "READY_FOR_PICKUP") {
+        return NextResponse.json(
+          { message: "খাবার এখনও তৈরি হয়নি! রেস্টুরেন্ট 'Ready for Pickup' করার পর পিকআপ করতে পারবেন।" },
+          { status: 400 }
+        );
+      }
+    }
+
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: { status: status },
+    });
+
+    return NextResponse.json(
+      { message: "Order status updated successfully", order: updatedOrder },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    return NextResponse.json({ message: "Failed to update status" }, { status: 500 });
+  }
+}
+
+
+================================================================================
+7. [API - ACCEPT ORDER] src/app/api/rider/accept-order/route.ts
+================================================================================
+import { NextResponse } from "next/server";
+import { prisma } from "../../../../lib/prisma";
+
+export async function POST(request: Request) {
+  try {
+    const { orderId, riderId } = await request.json();
+
+    if (!orderId || !riderId) {
+      return NextResponse.json(
+        { message: "Order ID and Rider ID are required!" },
+        { status: 400 }
+      );
+    }
+
+    // 🚀 Check active order stack limit (Max 3 orders at a time)
+    const currentActiveOrdersCount = await prisma.order.count({
+      where: {
+        riderId: riderId,
+        status: {
+          in: ["ACCEPTED_BY_RIDER", "PREPARING", "READY_FOR_PICKUP", "ON_THE_WAY", "ARRIVED"],
+        },
+      },
+    });
+
+    if (currentActiveOrdersCount >= 3) {
+      return NextResponse.json(
+        { message: "You have reached the maximum stacked limit of 3 orders! Please complete an active delivery first." },
+        { status: 400 }
+      );
+    }
+
+    // Check existing order state
+    const existing = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { status: true, riderId: true },
+    });
+
+    if (!existing || existing.riderId !== null) {
+      return NextResponse.json(
+        { message: "Sorry! This order has already been accepted by another rider." },
+        { status: 409 }
+      );
+    }
+
+    // 🔒 If kitchen has already cooked the food (READY_FOR_PICKUP), keep it as READY_FOR_PICKUP so rider can pick up immediately!
+    const targetStatus = existing.status === "READY_FOR_PICKUP" ? "READY_FOR_PICKUP" : "ACCEPTED_BY_RIDER";
+
+    // 🚀 Race Condition Lock: riderId must be null
+    const updatedOrder = await prisma.order.updateMany({
+      where: {
+        id: orderId,
+        riderId: null,
+        status: {
+          in: ["PREPARING", "READY_FOR_PICKUP", "ACCEPTED_BY_RIDER"],
+        },
+      },
+      data: {
+        riderId: riderId,
+        status: targetStatus,
+      },
+    });
+
+    if (updatedOrder.count === 0) {
+      return NextResponse.json(
+        { message: "Sorry! This order has already been accepted by another rider." },
+        { status: 409 }
+      );
+    }
+
+    return NextResponse.json(
+      { message: "Order accepted successfully! Get ready to deliver." },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    console.error("Error accepting order:", error);
+    return NextResponse.json(
+      { message: "Failed to accept order." },
+      { status: 500 }
+    );
+  }
+}
+
+
+================================================================================
+8. [CUSTOMER LIVE DELIVERY PROMPT] src/components/orders/LiveCustomerDeliveryPrompt.tsx
+================================================================================
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  Bike,
+  CheckCircle2,
+  Phone,
+  Store,
+  X,
+  Sparkles,
+  ShieldCheck,
+  AlertCircle,
+  Loader2,
+  KeyRound,
+} from "lucide-react";
+import { triggerFireworks, triggerConfetti } from "../../lib/confetti";
+import { playDeliveryCompleteSound } from "../../lib/sound";
+
+export default function LiveCustomerDeliveryPrompt() {
+  const [arrivedOrder, setArrivedOrder] = useState<any | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [dismissedId, setDismissedId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkUser = () => {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        try {
+          const u = JSON.parse(stored);
+          if (u?.id) {
+            setCurrentUserId(u.id);
+          }
+        } catch (e) {}
+      }
+    };
+    checkUser();
+  }, []);
+
+  // Poll for any active order that has status === "ARRIVED"
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const checkArrivedOrders = async () => {
+      try {
+        const res = await fetch(`/api/orders/user?userId=${currentUserId}`);
+        if (!res.ok) return;
+        const orders = await res.json();
+        if (Array.isArray(orders)) {
+          const arrived = orders.find(
+            (o: any) => o.status === "ARRIVED" && o.id !== dismissedId
+          );
+          setArrivedOrder(arrived || null);
+        }
+      } catch (err) {
+        console.error("Error polling arrived orders:", err);
+      }
+    };
+
+    checkArrivedOrders();
+    const interval = setInterval(checkArrivedOrders, 3000);
+    return () => clearInterval(interval);
+  }, [currentUserId, dismissedId]);
+
+  const handleConfirmDelivery = async () => {
+    if (!arrivedOrder) return;
+    setIsConfirming(true);
+
+    try {
+      const res = await fetch(`/api/orders/${arrivedOrder.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "DELIVERED" }),
+      });
+
+      if (res.ok) {
+        playDeliveryCompleteSound();
+        triggerFireworks();
+        triggerConfetti();
+        setArrivedOrder(null);
+        alert("🎉 Enjoy your delicious meal! Your delivery has been confirmed.");
+      } else {
+        alert("⚠️ Failed to confirm delivery. Please try again.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error confirming delivery.");
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  if (!arrivedOrder) return null;
+
+  const pinCode = arrivedOrder.id.slice(-4).toUpperCase();
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/70 p-4 backdrop-blur-xs font-sans animate-in fade-in duration-200">
+      <div className="max-w-md w-full bg-white rounded-3xl p-6 space-y-5 shadow-2xl border-2 border-orange-500 relative overflow-hidden animate-in slide-in-from-bottom-6">
+        
+        {/* Glow Header Accent */}
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-amber-400 to-emerald-500" />
+
+        {/* Top Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-100 text-orange-600 shadow-md shadow-orange-100 animate-bounce">
+              <Bike className="h-7 w-7" />
+            </div>
+            <div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-[11px] font-black text-orange-800">
+                <Sparkles className="h-3 w-3 text-orange-600" />
+                Rider At Your Doorstep!
+              </span>
+              <h3 className="text-lg font-black text-slate-900 mt-0.5">
+                Food Arrival Confirmation
+              </h3>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setDismissedId(arrivedOrder.id);
+              setArrivedOrder(null);
+            }}
+            className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
+            title="Dismiss for now"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Rider & Order Details Card */}
+        <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200/80 space-y-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-slate-500 flex items-center gap-1.5">
+              <Store className="h-3.5 w-3.5 text-orange-600" />
+              {arrivedOrder.restaurant?.name || "Restaurant"}
+            </span>
+            <span className="font-black text-slate-900">
+              Total: ৳{arrivedOrder.totalAmount}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
+            <div>
+              <p className="text-xs font-black text-slate-800">
+                {arrivedOrder.rider?.name || "FoodDrop Delivery Partner"}
+              </p>
+              <p className="text-[11px] text-slate-500">
+                {arrivedOrder.rider?.vehicleType || "Rider"} • {arrivedOrder.rider?.phone || "Verified"}
+              </p>
+            </div>
+            {arrivedOrder.rider?.phone && (
+              <a
+                href={`tel:${arrivedOrder.rider.phone}`}
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 shadow-xs hover:bg-orange-50 hover:text-orange-600"
+              >
+                <Phone className="h-4 w-4" />
+              </a>
+            )}
+          </div>
+        </div>
+
+        {/* Secret 4-Digit PIN Box */}
+        <div className="rounded-2xl bg-amber-50 p-3.5 border border-amber-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-amber-700" />
+            <div>
+              <span className="text-[11px] font-bold text-amber-900">
+                Backup Delivery PIN:
+              </span>
+              <p className="text-[10px] text-amber-700">
+                Tell this code to the rider if needed
+              </p>
+            </div>
+          </div>
+          <span className="text-lg font-black tracking-widest text-amber-900 bg-white px-3 py-1 rounded-xl border border-amber-300 shadow-xs">
+            {pinCode}
+          </span>
+        </div>
+
+        {/* Confirmation Question */}
+        <p className="text-xs text-center text-slate-600 font-medium px-2">
+          Did you receive your food package from the rider in good condition?
+        </p>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2.5">
+          <button
+            type="button"
+            onClick={() => {
+              setDismissedId(arrivedOrder.id);
+              setArrivedOrder(null);
+            }}
+            className="flex-1 py-3 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-2xl transition cursor-pointer"
+          >
+            Not Yet
+          </button>
+
+          <button
+            type="button"
+            onClick={handleConfirmDelivery}
+            disabled={isConfirming}
+            className="flex-2 flex items-center justify-center gap-2 py-3 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 rounded-2xl shadow-lg shadow-emerald-600/30 transition active:scale-98 disabled:opacity-50 cursor-pointer"
+          >
+            {isConfirming ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4" />
+            )}
+            <span>Yes, Received Food! 🎉</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+================================================================================
+                              END OF CODE ARCHIVE
+================================================================================
