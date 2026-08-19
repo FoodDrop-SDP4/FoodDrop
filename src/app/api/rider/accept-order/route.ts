@@ -12,6 +12,23 @@ export async function POST(request: Request) {
       );
     }
 
+    // 🚀 Check active order stack limit (Max 3 orders at a time)
+    const currentActiveOrdersCount = await prisma.order.count({
+      where: {
+        riderId: riderId,
+        status: {
+          in: ["ACCEPTED_BY_RIDER", "PREPARING", "READY_FOR_PICKUP", "ON_THE_WAY"],
+        },
+      },
+    });
+
+    if (currentActiveOrdersCount >= 3) {
+      return NextResponse.json(
+        { message: "You have reached the maximum stacked limit of 3 orders! Please complete an active delivery first." },
+        { status: 400 }
+      );
+    }
+
     // 🚀 Race Condition Lock: riderId অবশ্যই null হতে হবে!
     const updatedOrder = await prisma.order.updateMany({
       where: {

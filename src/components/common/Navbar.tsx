@@ -11,9 +11,11 @@ import { isSoundEnabled, toggleSoundEnabled } from "../../lib/sound";
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [soundOn, setSoundOn] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
+    setMounted(true);
     setSoundOn(isSoundEnabled());
   }, []);
 
@@ -25,7 +27,7 @@ export default function Navbar() {
   const cart = useCartStore((state) => state.cart);
   const openCart = useCartStore((state) => state.openCart);
 
-  const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const totalCartItems = mounted ? cart.reduce((sum, item) => sum + item.quantity, 0) : 0;
 
   const syncUser = async () => {
     try {

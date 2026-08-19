@@ -19,6 +19,7 @@ import {
   Smartphone,
   ShieldCheck,
   Check,
+  Utensils,
 } from "lucide-react";
 import { useCartStore } from "../../store/useCartStore";
 import { User, Address } from "../../types";
@@ -48,6 +49,11 @@ export default function CheckoutPage() {
   const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Promo Code State
   const [promoInput, setPromoInput] = useState("");
@@ -272,6 +278,14 @@ export default function CheckoutPage() {
     );
   }
 
+  if (!mounted) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 font-sans pt-24 pb-16">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
@@ -291,9 +305,25 @@ export default function CheckoutPage() {
         </div>
 
         {cart.length === 0 ? (
-          <div className="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-12 text-center text-slate-400">
-            <ShoppingBag className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-            <p className="font-bold text-slate-600">Your cart is empty!</p>
+          <div className="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-12 text-center text-slate-400 space-y-4">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-orange-50 text-orange-500 mx-auto">
+              <ShoppingBag className="h-10 w-10 stroke-[1.5]" />
+            </div>
+            <div>
+              <p className="font-bold text-slate-800 text-lg">Your cart is empty!</p>
+              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                Looks like you haven't selected any dishes yet. Explore menus and add items to place an order.
+              </p>
+            </div>
+            <div>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 rounded-2xl bg-orange-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange-600/30 transition hover:bg-orange-700 active:scale-95"
+              >
+                <Utensils className="h-4 w-4" />
+                <span>Browse Foods</span>
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="grid gap-8 lg:grid-cols-[1fr_380px]">

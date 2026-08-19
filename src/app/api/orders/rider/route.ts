@@ -11,8 +11,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: "Rider ID is required!" }, { status: 400 });
     }
 
-    // ১. রাইডারের রানিং অ্যাক্টিভ অর্ডারটি ডাটাবেজ থেকে খোঁজা
-    const activeOrder = await prisma.order.findFirst({
+    // ১. রাইডারের সব রানিং অ্যাক্টিভ অর্ডার ডাটাবেজ থেকে খোঁজা (Stacked Orders Support)
+    const activeOrders = await prisma.order.findMany({
       where: {
         riderId: riderId,
         status: {
@@ -23,6 +23,14 @@ export async function GET(request: Request) {
       include: {
         restaurant: true,
         customer: true, // কাস্টমারের নাম ও ফোন নাম্বার কল করার জন্য
+        orderItems: {
+          include: {
+            menuItem: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "asc",
       },
     });
 
@@ -40,13 +48,30 @@ export async function GET(request: Request) {
       },
     });
 
+    const settlements = await prisma.settlement.findMany({
+      where: { riderId: riderId },
+    });
+    const totalSettledAmount = settlements.reduce((sum, item) => sum + item.amount, 0);
+
     const todayEarnings = todaysOrders.reduce((sum, order) => sum + (order.deliveryFee || 60), 0);
 
+    const allDeliveredOrders = await prisma.order.findMany({
+      where: { riderId: riderId, status: "DELIVERED" },
+    });
+    const totalCashCollected = allDeliveredOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const totalAllEarnings = allDeliveredOrders.reduce((sum, order) => sum + (order.deliveryFee || 60), 0);
+
+    const currentCashInHand = Math.max(0, totalCashCollected - totalSettledAmount);
+    const currentPayable = Math.max(0, totalCashCollected - totalAllEarnings - totalSettledAmount);
+
     return NextResponse.json({
-      activeOrder: activeOrder || null,
+      activeOrders: activeOrders || [],
+      activeOrder: activeOrders.length > 0 ? activeOrders[0] : null,
       todaySummary: {
         count: todaysOrders.length,
         earnings: todayEarnings,
+        cashInHand: currentCashInHand,
+        payableBalance: currentPayable,
       },
     });
   } catch (error) {
@@ -63,6 +88,24 @@ export async function PATCH(request: Request) {
 
     if (!orderId || !status) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
+    }
+
+    // 🔒 রান্নার আগে রাইডার পিকআপ করতে পারবে না - ভ্যালিডেশন
+    if (status === "ON_THE_WAY") {
+      const existingOrder = await prisma.order.findUnique({
+        where: { id: orderId },
+      });
+
+      if (!existingOrder) {
+        return NextResponse.json({ message: "Order not found!" }, { status: 404 });
+      }
+
+      if (existingOrder.status !== "READY_FOR_PICKUP") {
+        return NextResponse.json(
+          { message: "খাবার এখনও তৈরি হয়নি! রেস্টুরেন্ট 'Ready for Pickup' করার পর পিকআপ করতে পারবেন।" },
+          { status: 400 }
+        );
+      }
     }
 
     const updatedOrder = await prisma.order.update({
