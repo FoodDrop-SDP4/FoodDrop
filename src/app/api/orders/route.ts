@@ -130,3 +130,37 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+
+    const where: any = {};
+    if (userId) {
+      where.customerId = userId;
+    }
+
+    const orders = await prisma.order.findMany({
+      where,
+      include: {
+        restaurant: true,
+        rider: true,
+        orderItems: {
+          include: {
+            menuItem: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json(orders, { status: 200 });
+  } catch (error: any) {
+    console.error("Error fetching orders:", error);
+    return NextResponse.json(
+      { message: error?.message || "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
