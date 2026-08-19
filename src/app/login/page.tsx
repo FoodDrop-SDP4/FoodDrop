@@ -262,9 +262,12 @@ function LoginForm() {
               <span>Remember me on this device</span>
             </label>
 
-            <span className="text-[11px] font-bold text-slate-400 hover:text-orange-600 cursor-pointer transition">
+            <Link
+              href="/forgot-password"
+              className="text-[11px] font-bold text-slate-500 hover:text-orange-600 cursor-pointer transition"
+            >
               Forgot password?
-            </span>
+            </Link>
           </div>
 
           <button

@@ -154,6 +154,15 @@ model Settlement {
   rider         User     @relation(fields: [riderId], references: [id], onDelete: Cascade)
 }
 
+// 8. Password Reset OTP Token Model
+model PasswordReset {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  otpCode   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
 enum Role {
   CUSTOMER
   RESTAURANT_OWNER
