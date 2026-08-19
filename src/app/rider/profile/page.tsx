@@ -113,6 +113,19 @@ export default function RiderProfilePage() {
     e.preventDefault();
     if (!rider?.id || !settleAmount) return;
 
+    const numAmount = parseFloat(settleAmount);
+    const payable = historyData?.cashLedger?.payableBalance || 0;
+
+    if (payable <= 0) {
+      alert("⚠️ আপনার কোনো প্রদেয় বকেয়া ক্যাশ নেই (Payable Balance: ৳0)। অতিরিক্ত টাকা ডিপোজিট করার প্রয়োজন নেই।");
+      return;
+    }
+
+    if (numAmount > payable) {
+      alert(`⚠️ আপনি আপনার প্রদেয় বকেয়ার (৳${payable}) চেয়ে বেশি ডিপোজিট করতে পারবেন না! অনুগ্রহ করে সর্বোচ্চ ৳${payable} ডিপোজিট করুন।`);
+      return;
+    }
+
     setIsSubmittingSettle(true);
     try {
       const res = await fetch("/api/rider/settle", {
@@ -120,7 +133,7 @@ export default function RiderProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           riderId: rider.id,
-          amount: parseFloat(settleAmount),
+          amount: numAmount,
           method: settleMethod,
           transactionId: transactionId || "TXN" + Date.now().toString().slice(-6),
         }),
@@ -573,13 +586,30 @@ export default function RiderProfilePage() {
             <button
               type="button"
               onClick={() => {
-                setSettleAmount(cashLedger.payableBalance > 0 ? cashLedger.payableBalance.toString() : "500");
+                if (cashLedger.payableBalance <= 0) {
+                  alert("✓ চমৎকার! আপনার কোনো বকেয়া ক্যাশ নেই (All Cleared - ৳0 Due)। অতিরিক্ত জমা দেওয়ার প্রয়োজন নেই।");
+                  return;
+                }
+                setSettleAmount(cashLedger.payableBalance.toString());
                 setIsSettleModalOpen(true);
               }}
-              className="flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-600/30 transition hover:bg-emerald-700 active:scale-95 cursor-pointer"
+              className={`flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-black transition active:scale-95 cursor-pointer ${
+                cashLedger.payableBalance > 0
+                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700"
+                  : "bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100"
+              }`}
             >
-              <ArrowUpRight className="h-4 w-4" />
-              <span>Deposit / Settle Cash</span>
+              {cashLedger.payableBalance > 0 ? (
+                <>
+                  <ArrowUpRight className="h-4 w-4" />
+                  <span>Deposit / Settle Cash</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <span>All Cleared (৳0 Due)</span>
+                </>
+              )}
             </button>
           </div>
 
@@ -870,16 +900,25 @@ export default function RiderProfilePage() {
 
                 {/* Amount */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Settlement Amount (৳):</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700">Settlement Amount (৳):</label>
+                    <span className="text-[11px] font-bold text-emerald-700">
+                      সর্বোচ্চ প্রদেয়: ৳{cashLedger.payableBalance}
+                    </span>
+                  </div>
                   <input
                     type="number"
                     required
-                    min="10"
+                    min="1"
+                    max={cashLedger.payableBalance}
                     value={settleAmount}
                     onChange={(e) => setSettleAmount(e.target.value)}
                     className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-900 focus:border-emerald-500 focus:outline-hidden"
-                    placeholder="Enter amount to deposit"
+                    placeholder={`সর্বোচ্চ ৳${cashLedger.payableBalance}`}
                   />
+                  <p className="text-[10px] text-slate-400">
+                    * আপনার বকেয়া ব্যালেন্সের চেয়ে বেশি ডিপোজিট করা যাবে না।
+                  </p>
                 </div>
 
                 {/* Transaction ID */}
