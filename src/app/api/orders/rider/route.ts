@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 // 🚀 GET: রাইডারের বর্তমান অ্যাক্টিভ অর্ডার এবং আজকের সামারি ফেচ করা
 export async function GET(request: Request) {
   try {
@@ -17,7 +20,7 @@ export async function GET(request: Request) {
         riderId: riderId,
         status: {
           // ⚠️ এই স্ট্যাটাসগুলোর যেকোনো ১টি থাকলে সেটি অ্যাক্টিভ অর্ডার হিসেবে স্ক্রিনে দেখাবে
-          in: ["ACCEPTED_BY_RIDER", "PREPARING", "READY_FOR_PICKUP", "ON_THE_WAY"],
+          in: ["ACCEPTED_BY_RIDER", "PREPARING", "READY_FOR_PICKUP", "ON_THE_WAY", "ARRIVED"],
         },
       },
       include: {

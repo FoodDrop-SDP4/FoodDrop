@@ -56,6 +56,12 @@ const statusConfig: Record<
     text: "text-orange-700",
     icon: Truck,
   },
+  ARRIVED: {
+    label: "Rider Arrived",
+    bg: "bg-emerald-50 border-emerald-300",
+    text: "text-emerald-800",
+    icon: MapPin,
+  },
   DELIVERED: {
     label: "Delivered",
     bg: "bg-emerald-50 border-emerald-200",

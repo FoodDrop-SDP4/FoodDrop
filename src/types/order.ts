@@ -8,6 +8,7 @@ export type OrderStatus =
   | "READY_FOR_PICKUP"
   | "ACCEPTED_BY_RIDER"
   | "ON_THE_WAY"
+  | "ARRIVED"
   | "DELIVERED"
   | "CANCELLED";
 

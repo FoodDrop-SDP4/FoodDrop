@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       where: {
         riderId: riderId,
         status: {
-          in: ["ACCEPTED_BY_RIDER", "PREPARING", "READY_FOR_PICKUP", "ON_THE_WAY"],
+          in: ["ACCEPTED_BY_RIDER", "PREPARING", "READY_FOR_PICKUP", "ON_THE_WAY", "ARRIVED"],
         },
       },
     });
@@ -29,22 +29,37 @@ export async function POST(request: Request) {
       );
     }
 
-    // 🚀 Race Condition Lock: riderId অবশ্যই null হতে হবে!
+    // Check existing order state
+    const existing = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { status: true, riderId: true },
+    });
+
+    if (!existing || existing.riderId !== null) {
+      return NextResponse.json(
+        { message: "Sorry! This order has already been accepted by another rider." },
+        { status: 409 }
+      );
+    }
+
+    // 🔒 If kitchen has already cooked the food (READY_FOR_PICKUP), keep it as READY_FOR_PICKUP so rider can pick up immediately!
+    const targetStatus = existing.status === "READY_FOR_PICKUP" ? "READY_FOR_PICKUP" : "ACCEPTED_BY_RIDER";
+
+    // 🚀 Race Condition Lock: riderId must be null
     const updatedOrder = await prisma.order.updateMany({
       where: {
         id: orderId,
-        riderId: null, // Ensure order hasn't been claimed yet
+        riderId: null,
         status: {
-          in: ["PREPARING", "READY_FOR_PICKUP"],
+          in: ["PREPARING", "READY_FOR_PICKUP", "ACCEPTED_BY_RIDER"],
         },
       },
       data: {
         riderId: riderId,
-        status: "ACCEPTED_BY_RIDER", // 👈 তোমার schema.prisma এর সাথে অবিকল মিল রাখা হয়েছে
+        status: targetStatus,
       },
     });
 
-    // ❌ যদি update count 0 হয়, তারমানে অন্য কোনো রাইডার ১ মিলিসেকেন্ড আগে এটি এক্সেপ্ট করে ফেলেছে!
     if (updatedOrder.count === 0) {
       return NextResponse.json(
         { message: "Sorry! This order has already been accepted by another rider." },

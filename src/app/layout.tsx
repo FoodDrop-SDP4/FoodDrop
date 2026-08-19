@@ -5,6 +5,7 @@ import Navbar from "../components/common/Navbar";
 import CartDrawer from "../components/common/CartDrawer";
 import FoodieAIAssistant from "../components/ai/FoodieAIAssistant";
 import PWAInstallPrompt from "../components/common/PWAInstallPrompt";
+import LiveCustomerDeliveryPrompt from "../components/orders/LiveCustomerDeliveryPrompt";
 
 export const metadata: Metadata = {
 	title: "FoodDrop - Fast Food & Delivery Platform",
@@ -52,6 +53,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
 				{children}
 				<FoodieAIAssistant />
 				<PWAInstallPrompt />
+				<LiveCustomerDeliveryPrompt />
 			</body>
 		</html>
 	);

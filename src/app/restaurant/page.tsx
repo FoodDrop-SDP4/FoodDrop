@@ -301,7 +301,7 @@ export default function ProfessionalRestaurantDashboard() {
   // Filtered Orders
   const orders = restaurant?.orders || [];
   const pendingOrders = orders.filter((o) => o.status === "PENDING");
-  const preparingOrders = orders.filter((o) => o.status === "PREPARING");
+  const preparingOrders = orders.filter((o) => o.status === "PREPARING" || o.status === "ACCEPTED_BY_RIDER");
   const readyOrders = orders.filter((o) => o.status === "READY_FOR_PICKUP");
   const deliveredOrders = orders.filter((o) => o.status === "DELIVERED");
   const cancelledOrders = orders.filter((o) => o.status === "CANCELLED");
@@ -309,6 +309,8 @@ export default function ProfessionalRestaurantDashboard() {
   const filteredOrders =
     orderFilter === "ALL"
       ? orders
+      : orderFilter === "PREPARING"
+      ? orders.filter((o) => o.status === "PREPARING" || o.status === "ACCEPTED_BY_RIDER")
       : orders.filter((o) => o.status === orderFilter);
 
   // Filtered Menu Items
@@ -727,7 +729,7 @@ export default function ProfessionalRestaurantDashboard() {
               <div className="grid gap-5 md:grid-cols-2">
                 {filteredOrders.map((order) => {
                   const isPending = order.status === "PENDING";
-                  const isPreparing = order.status === "PREPARING";
+                  const isPreparing = order.status === "PREPARING" || order.status === "ACCEPTED_BY_RIDER";
                   const isReady = order.status === "READY_FOR_PICKUP";
                   const isDelivered = order.status === "DELIVERED";
                   const isCancelled = order.status === "CANCELLED";

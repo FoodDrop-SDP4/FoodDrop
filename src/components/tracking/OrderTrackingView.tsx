@@ -24,9 +24,13 @@ import {
   ShoppingBag,
   CreditCard,
   Loader2,
+  KeyRound,
+  Sparkles,
 } from "lucide-react";
 import { Order, OrderStatus } from "../../types";
 import OrderReceiptModal from "../orders/OrderReceiptModal";
+import { triggerFireworks, triggerConfetti } from "../../lib/confetti";
+import { playDeliveryCompleteSound } from "../../lib/sound";
 
 // Dynamic import for Leaflet map component (SSR: false)
 const LiveTrackingMap = dynamic(() => import("./LiveTrackingMap"), {
@@ -60,6 +64,7 @@ const getProgressByStatus = (status: OrderStatus): number => {
     case "READY_FOR_PICKUP": return 50;
     case "ACCEPTED_BY_RIDER": return 65;
     case "ON_THE_WAY": return 80;
+    case "ARRIVED": return 92;
     case "DELIVERED": return 100;
     default: return 10;
   }
@@ -114,6 +119,7 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
       case "ACCEPTED_BY_RIDER":
         return 2;
       case "ON_THE_WAY":
+      case "ARRIVED":
         return 3;
       case "DELIVERED":
         return 4;
@@ -139,12 +145,44 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
         return `Rider Assigned • ${order.rider?.name || "Rider"} heading to restaurant 🏍️`;
       case "ON_THE_WAY":
         return "Out for Delivery • Arriving in ~10-15 mins 🛵";
+      case "ARRIVED":
+        return "Rider Arrived at Doorstep • Confirm Food Receipt Below 🍕";
       case "DELIVERED":
         return "Order Delivered Successfully! 🎉";
       default:
         return "Estimated Arrival: ~25 mins";
     }
   }, [currentStatus, order.rider]);
+
+  const [isConfirmingDelivery, setIsConfirmingDelivery] = useState(false);
+
+  // 🚀 Customer Confirm Delivery Action
+  const handleCustomerConfirmDelivery = async () => {
+    setIsConfirmingDelivery(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "DELIVERED" }),
+      });
+
+      if (res.ok) {
+        playDeliveryCompleteSound();
+        triggerFireworks();
+        triggerConfetti();
+        setCurrentStatus("DELIVERED");
+        setOrder((prev) => ({ ...prev, status: "DELIVERED" }));
+        setProgressPercent(100);
+      } else {
+        alert("⚠️ Failed to confirm delivery. Please try again.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error confirming delivery.");
+    } finally {
+      setIsConfirmingDelivery(false);
+    }
+  };
 
   const isOnlinePayment = order.paymentMethod && order.paymentMethod !== "COD";
 
@@ -394,6 +432,62 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
             })}
           </div>
         </div>
+
+        {/* 🛵 LIVE ARRIVAL CONFIRMATION CARD FOR CUSTOMER */}
+        {currentStatus === "ARRIVED" && (
+          <div className="mb-8 rounded-3xl border-2 border-emerald-500 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-100/70 p-6 sm:p-7 shadow-xl space-y-4 animate-in fade-in slide-in-from-top-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-200 animate-bounce">
+                  <Bike className="h-7 w-7" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-200 px-3 py-0.5 text-xs font-black text-emerald-900 shadow-2xs">
+                      <Sparkles className="h-3 w-3 text-emerald-700" />
+                      Rider At Your Doorstep!
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 mt-1">
+                    {order.rider?.name || "Rider"} is waiting outside with your food!
+                  </h3>
+                  <p className="text-xs text-slate-600 font-medium">
+                    Order #{order.id.slice(0, 8)} • Total: ৳{order.totalAmount}
+                  </p>
+                </div>
+              </div>
+
+              {/* Secret 4-Digit PIN */}
+              <div className="flex items-center gap-2.5 bg-white px-4 py-2.5 rounded-2xl border border-emerald-300 text-xs shadow-xs">
+                <KeyRound className="h-4 w-4 text-emerald-600" />
+                <div>
+                  <span className="font-bold text-slate-500 block text-[10px]">BACKUP PIN:</span>
+                  <span className="font-black text-slate-900 tracking-widest text-base">
+                    {order.id.slice(-4).toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-700 font-medium pt-1">
+              Have you received your food package in good condition? Tap the button below to confirm receipt and finish your delivery.
+            </p>
+
+            <button
+              type="button"
+              onClick={handleCustomerConfirmDelivery}
+              disabled={isConfirmingDelivery}
+              className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-emerald-600 py-4 text-sm font-black uppercase tracking-wider text-white shadow-xl shadow-emerald-600/30 hover:bg-emerald-700 active:scale-98 transition disabled:opacity-50 cursor-pointer"
+            >
+              {isConfirmingDelivery ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-5 w-5" />
+              )}
+              <span>Yes, I Received My Food! 🍕 (Confirm Delivery)</span>
+            </button>
+          </div>
+        )}
 
         {/* Main Grid: Map & Details Sidebar */}
         <div className="grid gap-8 lg:grid-cols-3">

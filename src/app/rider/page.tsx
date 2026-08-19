@@ -24,6 +24,8 @@ import {
   ShieldCheck,
   ShoppingBag,
   Wallet,
+  KeyRound,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { User, Order, TodaySummary } from "../../types";
@@ -56,6 +58,7 @@ export default function RiderDashboardPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [showItinerary, setShowItinerary] = useState(true);
+  const [deliveryPinInput, setDeliveryPinInput] = useState("");
 
   // Fetch Rider active orders & stats
   const fetchRiderData = async (riderId: string) => {
@@ -128,11 +131,13 @@ export default function RiderDashboardPage() {
   }, [router]);
 
   useEffect(() => {
+    if (rider?.id) fetchRiderData(rider.id);
     fetchAvailableOrders();
+
     const interval = setInterval(() => {
       fetchAvailableOrders();
       if (rider?.id) fetchRiderData(rider.id);
-    }, 4000);
+    }, 2500);
 
     return () => clearInterval(interval);
   }, [isOnline, rider?.id]);
@@ -363,9 +368,19 @@ export default function RiderDashboardPage() {
                     📦 Single Delivery In Progress
                   </span>
                 )}
-                <p className="text-xs text-slate-500 mt-1.5 font-medium">
-                  Currently Viewing: <b className="text-slate-900">Order #{activeOrder.id.slice(0, 8)}</b> ({activeOrder.status})
-                </p>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <p className="text-xs text-slate-500 font-medium">
+                    Currently Viewing: <b className="text-slate-900">Order #{activeOrder.id.slice(0, 8)}</b> ({activeOrder.status})
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => rider?.id && fetchRiderData(rider.id)}
+                    className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-orange-600 transition cursor-pointer"
+                    title="Refresh Live Status"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
 
               <div className="rounded-2xl bg-emerald-50 px-4 py-2 border border-emerald-200 text-right">
@@ -638,6 +653,80 @@ export default function RiderDashboardPage() {
                     </span>
                   </button>
                 </div>
+              ) : activeOrder.status === "ON_THE_WAY" ? (
+                <button
+                  disabled={actionLoading}
+                  onClick={() => handleUpdateOrderStatus(activeOrder.id, "ARRIVED")}
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-orange-600 py-4 text-xs font-black uppercase tracking-wider text-white shadow-xl shadow-orange-600/30 transition hover:bg-orange-700 active:scale-98 disabled:opacity-50 cursor-pointer animate-pulse hover:animate-none"
+                >
+                  {actionLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Navigation className="h-5 w-5" />
+                  )}
+                  <span>
+                    🛵 I Have Arrived at Doorstep • Request Customer Confirmation
+                  </span>
+                </button>
+              ) : activeOrder.status === "ARRIVED" ? (
+                <div className="rounded-2xl bg-emerald-50/80 border-2 border-emerald-300 p-5 space-y-4 shadow-md">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                      </span>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-emerald-900">
+                        Waiting for Customer Confirmation... ⏳
+                      </h4>
+                    </div>
+                    <span className="text-[10px] font-black uppercase bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full">
+                      Prompt Sent
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-emerald-800">
+                    A live <b>One-Tap Confirmation Prompt</b> has appeared on <b>{activeOrder.customer?.name || "Customer"}'s</b> phone. As soon as they tap <i>"Yes, Received Food"</i>, this order will automatically complete!
+                  </p>
+
+                  {/* Backup 4-Digit PIN Code Option */}
+                  <div className="rounded-xl bg-white p-3.5 border border-emerald-200 space-y-2.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                      <KeyRound className="h-3.5 w-3.5 text-orange-600" />
+                      <span>Customer phone locked or unavailable?</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Ask the customer for the 4-digit PIN code on their screen:
+                    </p>
+
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        maxLength={4}
+                        value={deliveryPinInput}
+                        onChange={(e) => setDeliveryPinInput(e.target.value.toUpperCase())}
+                        placeholder="e.g. 4821"
+                        className="w-28 uppercase text-center font-black tracking-widest text-sm rounded-xl border border-slate-300 px-3 py-2 focus:border-emerald-500 focus:outline-hidden"
+                      />
+                      <button
+                        type="button"
+                        disabled={actionLoading || deliveryPinInput.length < 4}
+                        onClick={() => {
+                          const expectedPin = activeOrder.id.slice(-4).toUpperCase();
+                          if (deliveryPinInput.trim() === expectedPin) {
+                            handleUpdateOrderStatus(activeOrder.id, "DELIVERED");
+                            setDeliveryPinInput("");
+                          } else {
+                            alert(`❌ Invalid PIN code! Please verify the 4-digit code with the customer.`);
+                          }
+                        }}
+                        className="flex-1 rounded-xl bg-slate-900 px-4 py-2 text-xs font-black uppercase tracking-wider text-white hover:bg-emerald-600 transition disabled:opacity-40 cursor-pointer"
+                      >
+                        Verify PIN & Deliver
+                      </button>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <button
                   disabled={actionLoading}
@@ -650,7 +739,7 @@ export default function RiderDashboardPage() {
                     <CheckCircle2 className="h-5 w-5" />
                   )}
                   <span>
-                    At Doorstep • Mark Order #{activeOrder.id.slice(0, 6)} as Delivered ✅
+                    Mark Order #{activeOrder.id.slice(0, 6)} as Delivered ✅
                   </span>
                 </button>
               )}
