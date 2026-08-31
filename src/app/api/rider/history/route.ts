@@ -53,8 +53,8 @@ export async function GET(request: Request) {
     // Net remaining payable balance to platform (Cash In Hand - Rider Share - Settled)
     const netPayable = Math.max(0, totalGrossCashCollected - totalEarnings - totalSettledAmount);
     
-    const limitUsagePercentage = Math.min(100, Math.round((netCashInHand / cashLimit) * 100));
-    const isLimitExceeded = netCashInHand >= cashLimit;
+    const limitUsagePercentage = Math.min(100, Math.round((netPayable / cashLimit) * 100));
+    const isLimitExceeded = netPayable >= cashLimit;
 
     const cashLedger = {
       cashInHand: netCashInHand,

@@ -662,7 +662,7 @@ export default function RiderProfilePage() {
                 Rider Cash Float Safety Limit
               </span>
               <span className="font-black text-slate-900">
-                ৳{cashLedger.cashInHand} / ৳{cashLedger.cashLimit} ({cashLedger.limitUsagePercentage}%)
+                ৳{cashLedger.payableBalance} / ৳{cashLedger.cashLimit} ({cashLedger.limitUsagePercentage}%)
               </span>
             </div>
 
