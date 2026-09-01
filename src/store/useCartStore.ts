@@ -18,6 +18,7 @@ type CartStore = {
   openCart: () => void;
   closeCart: () => void;
   addToCart: (item: CartItem) => void;
+  addMultipleToCart: (items: CartItem[]) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, delta: number) => void;
   clearCart: () => void;
@@ -50,6 +51,31 @@ export const useCartStore = create<CartStore>()(
           return {
             cart: [...currentCart, { ...newItem, quantity: 1 }],
           };
+        }),
+
+      addMultipleToCart: (newItems) =>
+        set((state) => {
+          if (!newItems || newItems.length === 0) return state;
+
+          const incomingRestaurantId = newItems[0].restaurantId;
+          const isDifferentRestaurant =
+            state.cart.length > 0 && state.cart[0].restaurantId !== incomingRestaurantId;
+
+          let updatedCart = isDifferentRestaurant ? [] : [...state.cart];
+
+          for (const newItem of newItems) {
+            const existingIndex = updatedCart.findIndex((item) => item.id === newItem.id);
+            if (existingIndex > -1) {
+              updatedCart[existingIndex] = {
+                ...updatedCart[existingIndex],
+                quantity: updatedCart[existingIndex].quantity + (newItem.quantity || 1),
+              };
+            } else {
+              updatedCart.push({ ...newItem, quantity: newItem.quantity || 1 });
+            }
+          }
+
+          return { cart: updatedCart };
         }),
 
       removeFromCart: (id) =>

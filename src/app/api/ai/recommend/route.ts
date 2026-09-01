@@ -6,6 +6,7 @@ interface RecommendRequestBody {
   query?: string;
   category?: string;
   maxBudget?: number;
+  restaurantId?: string;
 }
 
 export type DetectedLanguage = "BANGLA" | "BANGLISH" | "ENGLISH";
@@ -363,6 +364,11 @@ export async function POST(request: Request) {
           : 4.8;
       score += restaurantRating * 3;
 
+      // Context boost if user is browsing a specific restaurant
+      if (body.restaurantId && item.restaurantId === body.restaurantId) {
+        score += 35;
+      }
+
       const nutrition = estimateNutrition(item.name, item.category || "");
       const highlight = generateAiHighlight(
         { ...item, restaurantRating },
@@ -384,30 +390,107 @@ export async function POST(request: Request) {
       };
     });
 
-    // 👫 6. Smart Combo Pairing Builder (if combo requested)
+    // 👫 6. Smart Single-Restaurant Combo Pairing Builder (Strictly from the same restaurant)
     let comboMeal: any = null;
     if (isComboQuery) {
-      const mains = scoredItems.filter(
-        (i) => i.category?.includes("Biryani") || i.category?.includes("Burger") || i.category?.includes("Pizza")
-      );
-      const sidesOrDrinks = scoredItems.filter(
-        (i) => i.category?.includes("Beverages") || i.category?.includes("Dessert") || i.price < 200
-      );
+      // Group items by restaurantId so combos ALWAYS come from a single restaurant
+      const restaurantGroups = new Map<string, typeof scoredItems>();
+      for (const item of scoredItems) {
+        if (!restaurantGroups.has(item.restaurantId)) {
+          restaurantGroups.set(item.restaurantId, []);
+        }
+        restaurantGroups.get(item.restaurantId)!.push(item);
+      }
 
-      const main1 = mains[0] || scoredItems[0];
-      const side = sidesOrDrinks.find((s) => s.id !== main1.id) || scoredItems[1];
+      // Prioritize the currently active restaurant if provided
+      let targetRestaurants = Array.from(restaurantGroups.entries());
+      if (body.restaurantId && restaurantGroups.has(body.restaurantId)) {
+        targetRestaurants = [
+          [body.restaurantId, restaurantGroups.get(body.restaurantId)!],
+          ...targetRestaurants.filter(([id]) => id !== body.restaurantId),
+        ];
+      }
 
-      if (main1 && side) {
-        const total = main1.price + side.price;
+      let bestPair: {
+        main: (typeof scoredItems)[0];
+        side: (typeof scoredItems)[0];
+        combinedScore: number;
+      } | null = null;
+
+      for (const [, items] of targetRestaurants) {
+        if (items.length < 2) continue;
+
+        // Find mains and sides/drinks within this exact restaurant
+        const mains = items.filter(
+          (i) =>
+            i.category?.toLowerCase().includes("biryani") ||
+            i.category?.toLowerCase().includes("burger") ||
+            i.category?.toLowerCase().includes("pizza") ||
+            i.category?.toLowerCase().includes("platter") ||
+            i.category?.toLowerCase().includes("kebab") ||
+            i.category?.toLowerCase().includes("rice") ||
+            i.category?.toLowerCase().includes("curry") ||
+            i.category?.toLowerCase().includes("set") ||
+            i.price >= 150
+        );
+
+        const sidesOrDrinks = items.filter(
+          (i) =>
+            i.category?.toLowerCase().includes("beverage") ||
+            i.category?.toLowerCase().includes("drink") ||
+            i.category?.toLowerCase().includes("dessert") ||
+            i.category?.toLowerCase().includes("juice") ||
+            i.category?.toLowerCase().includes("side") ||
+            i.category?.toLowerCase().includes("fries") ||
+            i.category?.toLowerCase().includes("appetizer") ||
+            i.price < 200
+        );
+
+        const candidateMain = mains[0] || items[0];
+        const candidateSide =
+          sidesOrDrinks.find((s) => s.id !== candidateMain.id) ||
+          items.find((i) => i.id !== candidateMain.id);
+
+        if (candidateMain && candidateSide && candidateMain.id !== candidateSide.id) {
+          const totalCost = candidateMain.price + candidateSide.price;
+          let pairScore =
+            candidateMain.score +
+            candidateSide.score +
+            (candidateMain.restaurantRating || 4.5) * 4;
+
+          if (detectedBudget) {
+            if (totalCost <= detectedBudget) {
+              pairScore += 40;
+            } else {
+              pairScore -= 50;
+            }
+          }
+
+          if (!bestPair || pairScore > bestPair.combinedScore) {
+            bestPair = {
+              main: candidateMain,
+              side: candidateSide,
+              combinedScore: pairScore,
+            };
+          }
+        }
+      }
+
+      if (bestPair) {
+        const { main, side } = bestPair;
+        const total = main.price + side.price;
         const comboDiscounted = Math.round(total * 0.9); // 10% AI combo deal
+        const savings = total - comboDiscounted;
 
         comboMeal = {
-          title: `Smart Duo Feast (${main1.name} + ${side.name})`,
-          dishes: [main1, side],
+          title: `${main.restaurantName} Special Combo`,
+          restaurantId: main.restaurantId,
+          restaurantName: main.restaurantName,
+          dishes: [main, side],
           totalPrice: total,
           comboPrice: comboDiscounted,
-          savings: total - comboDiscounted,
-          caloriesTotal: main1.calories + side.calories,
+          savings: savings,
+          caloriesTotal: (main.calories || 0) + (side.calories || 0),
         };
       }
     }
