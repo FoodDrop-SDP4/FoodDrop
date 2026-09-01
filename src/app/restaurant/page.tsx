@@ -110,23 +110,36 @@ export default function ProfessionalRestaurantDashboard() {
   };
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
+    const checkAuth = () => {
+      const storedUser = localStorage.getItem("user");
+      if (!storedUser) {
+        setIsFetching(false);
+        window.location.href = "/login?redirect=/restaurant";
+        return;
+      }
+
       try {
         const parsedUser = JSON.parse(storedUser);
-        if (parsedUser?.id) {
+        if (parsedUser?.id && parsedUser?.role === "RESTAURANT_OWNER") {
           setOwnerId(parsedUser.id);
           setOwnerName(parsedUser.name || "Owner");
           fetchDashboardData(parsedUser.id);
         } else {
           setIsFetching(false);
+          window.location.href = "/login?redirect=/restaurant";
         }
       } catch (err) {
         setIsFetching(false);
+        window.location.href = "/login?redirect=/restaurant";
       }
-    } else {
-      setIsFetching(false);
-    }
+    };
+
+    checkAuth();
+
+    window.addEventListener("user-state-change", checkAuth);
+    return () => {
+      window.removeEventListener("user-state-change", checkAuth);
+    };
   }, []);
 
   // 🚀 Add Food Item with Discount Support

@@ -102,21 +102,29 @@ export default function RiderDashboardPage() {
   };
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      router.push("/rider/register");
-      return;
-    }
+    const checkRiderAuth = () => {
+      const storedUser = localStorage.getItem("user");
+      if (!storedUser) {
+        window.location.href = "/login?redirect=/rider";
+        return;
+      }
 
-    const user: User = JSON.parse(storedUser);
-    if (user.role !== "RIDER") {
-      router.push("/");
-      return;
-    }
+      try {
+        const user: User = JSON.parse(storedUser);
+        if (user.role !== "RIDER") {
+          window.location.href = "/login?redirect=/rider";
+          return;
+        }
 
-    setRider(user);
-    setIsOnline(user.isOnline ?? true);
-    fetchRiderData(user.id);
+        setRider(user);
+        setIsOnline(user.isOnline ?? true);
+        fetchRiderData(user.id);
+      } catch (err) {
+        window.location.href = "/login?redirect=/rider";
+      }
+    };
+
+    checkRiderAuth();
 
     // Sync full profile from server session to keep all fields fresh
     fetch("/api/auth/me")
@@ -128,7 +136,12 @@ export default function RiderDashboardPage() {
         }
       })
       .catch(() => {});
-  }, [router]);
+
+    window.addEventListener("user-state-change", checkRiderAuth);
+    return () => {
+      window.removeEventListener("user-state-change", checkRiderAuth);
+    };
+  }, []);
 
   useEffect(() => {
     if (rider?.id) fetchRiderData(rider.id);

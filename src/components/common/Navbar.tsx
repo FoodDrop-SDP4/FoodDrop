@@ -77,7 +77,7 @@ export default function Navbar() {
     localStorage.removeItem("user");
     setUser(null);
     window.dispatchEvent(new Event("user-state-change"));
-    router.push("/");
+    window.location.href = "/login";
   };
 
   const homeHref =

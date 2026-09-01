@@ -33,7 +33,7 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // 🚀 Preload remembered email on mount
+  // 🚀 Preload remembered email & auto-select tab on mount
   useEffect(() => {
     try {
       const savedEmail = localStorage.getItem("fooddrop_remembered_email");
@@ -42,13 +42,21 @@ function LoginForm() {
         setEmail(savedEmail);
         setRememberMe(true);
       }
-      if (savedRole && ["CUSTOMER", "RESTAURANT_OWNER", "RIDER"].includes(savedRole)) {
+
+      const roleParam = searchParams.get("role") as RoleType | null;
+      if (roleParam && ["CUSTOMER", "RESTAURANT_OWNER", "RIDER"].includes(roleParam)) {
+        setSelectedRole(roleParam);
+      } else if (redirectUrl.includes("restaurant")) {
+        setSelectedRole("RESTAURANT_OWNER");
+      } else if (redirectUrl.includes("rider")) {
+        setSelectedRole("RIDER");
+      } else if (savedRole && ["CUSTOMER", "RESTAURANT_OWNER", "RIDER"].includes(savedRole)) {
         setSelectedRole(savedRole);
       }
     } catch (e) {
       // quiet
     }
-  }, []);
+  }, [redirectUrl, searchParams]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
