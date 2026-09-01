@@ -16,7 +16,7 @@ export default function CustomerOrdersPage() {
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const router = useRouter();
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (isSilent = false) => {
     let currentUser: User | null = null;
 
     // 1. First check localStorage for immediate client hydration
@@ -47,7 +47,7 @@ export default function CustomerOrdersPage() {
 
     // If still no user, redirect to login
     if (!currentUser?.id) {
-      setIsLoading(false);
+      if (!isSilent) setIsLoading(false);
       router.push("/login?redirect=/orders");
       return;
     }
@@ -65,7 +65,7 @@ export default function CustomerOrdersPage() {
       console.error("Failed to fetch orders:", err);
       setOrders([]);
     } finally {
-      setIsLoading(false);
+      if (!isSilent) setIsLoading(false);
     }
   };
 
@@ -95,7 +95,13 @@ export default function CustomerOrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-  }, [router]);
+
+    const interval = setInterval(() => {
+      fetchOrders(true);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <main className="min-h-screen bg-slate-50 font-sans pt-24 pb-16">

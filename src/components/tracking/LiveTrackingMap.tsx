@@ -62,10 +62,10 @@ export default function LiveTrackingMap({
 
     L.control.zoom({ position: "bottomright" }).addTo(map);
 
-    // OpenStreetMap CartoDB Positron / standard clean tiles
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    // OpenStreetMap standard clean tiles (No API key watermark)
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
     }).addTo(map);
 
@@ -178,7 +178,7 @@ export default function LiveTrackingMap({
   }, [progressPercent]);
 
   return (
-    <div className="relative h-full w-full min-h-[380px] sm:min-h-[460px] overflow-hidden rounded-3xl border border-slate-200/80 shadow-inner">
+    <div className="relative z-0 h-full w-full min-h-[380px] sm:min-h-[460px] overflow-hidden rounded-3xl border border-slate-200/80 shadow-inner [isolation:isolate]">
       <div ref={mapContainerRef} className="h-full w-full" />
 
       {/* Floating Map Status Overlay */}

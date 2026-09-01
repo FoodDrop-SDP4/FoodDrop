@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState, useMemo } from "react";
+import { FormEvent, useEffect, useState, useMemo, useRef } from "react";
 import {
   Plus,
   Utensils,
@@ -36,6 +36,7 @@ import {
   CreditCard,
   Layers,
   Award,
+  BellRing,
 } from "lucide-react";
 import { MenuItem, Order, Restaurant, RestaurantStats, CATEGORIES, RestaurantType } from "../../types";
 import OrderReceiptModal from "../../components/orders/OrderReceiptModal";
@@ -69,6 +70,10 @@ export default function ProfessionalRestaurantDashboard() {
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [deletingFoodId, setDeletingFoodId] = useState<string | null>(null);
 
+  // 🔔 Real-time Order Alert States
+  const prevPendingCountRef = useRef<number | null>(null);
+  const [newOrderAlert, setNewOrderAlert] = useState<{ id: string; count: number } | null>(null);
+
   // Add Food Form States
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -84,11 +89,11 @@ export default function ProfessionalRestaurantDashboard() {
   const [editResAddress, setEditResAddress] = useState("");
   const [editResType, setEditResType] = useState<RestaurantType>("RESTAURANT");
 
-  const fetchDashboardData = async (targetId?: string) => {
+  const fetchDashboardData = async (targetId?: string, isSilent = false) => {
     const activeId = targetId || ownerId;
     if (!activeId) return setIsFetching(false);
 
-    setIsFetching(true);
+    if (!isSilent) setIsFetching(true);
     try {
       const res = await fetch(`/api/restaurants/dashboard?ownerId=${activeId}`);
       if (res.ok) {
@@ -101,11 +106,23 @@ export default function ProfessionalRestaurantDashboard() {
           setEditResAddress(result.restaurant.address);
           setEditResType(result.restaurant.restaurantType || "RESTAURANT");
         }
+
+        // 🔔 Auto Audio Chime on New Pending Order
+        const currentPending = result.stats?.pendingOrdersCount || 0;
+        if (prevPendingCountRef.current !== null && currentPending > prevPendingCountRef.current) {
+          playKitchenBellSound();
+          const newestOrder = result.restaurant?.orders?.find((o: Order) => o.status === "PENDING");
+          setNewOrderAlert({
+            id: newestOrder?.id || "new",
+            count: currentPending,
+          });
+        }
+        prevPendingCountRef.current = currentPending;
       }
     } catch (error) {
       console.error("Error fetching dashboard:", error);
     } finally {
-      setIsFetching(false);
+      if (!isSilent) setIsFetching(false);
     }
   };
 
@@ -141,6 +158,17 @@ export default function ProfessionalRestaurantDashboard() {
       window.removeEventListener("user-state-change", checkAuth);
     };
   }, []);
+
+  // 🚀 Real-time Live Polling every 2.5 seconds (Zero manual refresh needed!)
+  useEffect(() => {
+    if (!ownerId) return;
+
+    const interval = setInterval(() => {
+      fetchDashboardData(ownerId, true);
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [ownerId]);
 
   // 🚀 Add Food Item with Discount Support
   const handleAddFood = async (e: FormEvent) => {
@@ -544,6 +572,51 @@ export default function ProfessionalRestaurantDashboard() {
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-6 space-y-6">
         
+        {/* 🔔 Real-time New Order Live Notification Banner */}
+        {newOrderAlert && (
+          <div className="rounded-3xl border-2 border-orange-500 bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 p-4 sm:p-5 text-white shadow-xl shadow-orange-600/20 flex flex-wrap items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-300">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-orange-600 shadow-md animate-bounce">
+                <BellRing className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-orange-100 animate-pulse">
+                    🔔 New Order Incoming!
+                  </span>
+                  <span className="text-xs font-bold text-orange-100">Live Kitchen Feed</span>
+                </div>
+                <h3 className="text-base font-black">
+                  Customer Placed a New Order!
+                </h3>
+                <p className="text-xs text-orange-100">
+                  {newOrderAlert.count} pending order(s) awaiting kitchen acceptance. Tap below to review.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("orders");
+                  setOrderFilter("PENDING");
+                  setNewOrderAlert(null);
+                }}
+                className="rounded-2xl bg-white px-4 py-2.5 text-xs font-black text-orange-700 shadow hover:bg-orange-50 transition active:scale-95 cursor-pointer"
+              >
+                Accept Order Now ➔
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewOrderAlert(null)}
+                className="rounded-xl bg-white/20 hover:bg-white/30 p-2 text-white transition active:scale-95 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 🚀 Metric Stat Counters */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           

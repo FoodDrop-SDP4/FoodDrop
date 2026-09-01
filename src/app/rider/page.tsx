@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
@@ -26,6 +26,9 @@ import {
   Wallet,
   KeyRound,
   RefreshCw,
+  ChefHat,
+  BellRing,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { User, Order, TodaySummary } from "../../types";
@@ -60,6 +63,11 @@ export default function RiderDashboardPage() {
   const [showItinerary, setShowItinerary] = useState(true);
   const [deliveryPinInput, setDeliveryPinInput] = useState("");
 
+  // 🔔 Kitchen Status & Order Transition Tracker
+  const prevOrderStatusesRef = useRef<Record<string, string>>({});
+  const prevAvailableCountRef = useRef<number | null>(null);
+  const [readyOrderAlert, setReadyOrderAlert] = useState<{ id: string; restaurantName: string } | null>(null);
+
   // Fetch Rider active orders & stats
   const fetchRiderData = async (riderId: string) => {
     if (!riderId) return;
@@ -69,6 +77,23 @@ export default function RiderDashboardPage() {
         const data = await res.json();
         const orders: Order[] = data.activeOrders || (data.activeOrder ? [data.activeOrder] : []);
         setActiveOrders(orders);
+
+        // 🔔 Check if kitchen just marked order as READY_FOR_PICKUP
+        orders.forEach((ord) => {
+          const prevStatus = prevOrderStatusesRef.current[ord.id];
+          if (
+            prevStatus &&
+            prevStatus !== "READY_FOR_PICKUP" &&
+            ord.status === "READY_FOR_PICKUP"
+          ) {
+            playKitchenBellSound();
+            setReadyOrderAlert({
+              id: ord.id,
+              restaurantName: ord.restaurant?.name || "Restaurant",
+            });
+          }
+          prevOrderStatusesRef.current[ord.id] = ord.status;
+        });
 
         // Keep selected order valid
         setSelectedOrderId((prev) => {
@@ -93,8 +118,17 @@ export default function RiderDashboardPage() {
     try {
       const res = await fetch("/api/rider/available-orders");
       if (res.ok) {
-        const data = await res.json();
+        const data: Order[] = await res.json();
         setAvailableOrders(data);
+
+        // 🔔 Sound chime when new order is ready for claiming
+        if (
+          prevAvailableCountRef.current !== null &&
+          data.length > prevAvailableCountRef.current
+        ) {
+          playKitchenBellSound();
+        }
+        prevAvailableCountRef.current = data.length;
       }
     } catch (err) {
       console.error("Error polling available orders:", err);
@@ -284,6 +318,50 @@ export default function RiderDashboardPage() {
             <span>{isOnline ? "You are Online" : "Go Online"}</span>
           </button>
         </div>
+
+        {/* 🔔 Real-time Kitchen Cooking Finished Alert Banner */}
+        {readyOrderAlert && (
+          <div className="rounded-3xl border-2 border-emerald-500 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 p-4 sm:p-5 text-white shadow-xl shadow-emerald-600/20 flex flex-wrap items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-300">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-md animate-bounce">
+                <ChefHat className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-100 animate-pulse">
+                    🍳 Kitchen Ready!
+                  </span>
+                  <span className="text-xs font-bold text-emerald-200">Action Required</span>
+                </div>
+                <h3 className="text-base font-black">
+                  Cooking Finished at {readyOrderAlert.restaurantName}!
+                </h3>
+                <p className="text-xs text-emerald-100">
+                  Order #{readyOrderAlert.id.slice(0, 8)} is packed and ready for pickup. Head to the restaurant counter to collect.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedOrderId(readyOrderAlert.id);
+                  setReadyOrderAlert(null);
+                }}
+                className="rounded-2xl bg-white px-4 py-2.5 text-xs font-black text-emerald-700 shadow hover:bg-emerald-50 transition active:scale-95 cursor-pointer"
+              >
+                Go to Pickup ➔
+              </button>
+              <button
+                type="button"
+                onClick={() => setReadyOrderAlert(null)}
+                className="rounded-xl bg-white/20 hover:bg-white/30 p-2 text-white transition active:scale-95 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Rider Hero Card */}
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm">
