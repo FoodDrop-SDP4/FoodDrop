@@ -40,10 +40,16 @@ export default function LiveCustomerDeliveryPrompt() {
   // Poll for any active order that has status === "ARRIVED"
   useEffect(() => {
     if (!currentUserId) return;
+    const controller = new AbortController();
 
     const checkArrivedOrders = async () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
       try {
-        const res = await fetch(`/api/orders/user?userId=${currentUserId}`);
+        const res = await fetch(`/api/orders/user?userId=${currentUserId}`, {
+          signal: controller.signal,
+        });
         if (!res.ok) return;
         const orders = await res.json();
         if (Array.isArray(orders)) {
@@ -52,14 +58,20 @@ export default function LiveCustomerDeliveryPrompt() {
           );
           setArrivedOrder(arrived || null);
         }
-      } catch (err) {
-        console.error("Error polling arrived orders:", err);
+      } catch (err: any) {
+        // Quiet fail on network blips or aborted requests when server restarts
+        if (err.name !== "AbortError") {
+          // silently ignore transient network fetch drops
+        }
       }
     };
 
     checkArrivedOrders();
     const interval = setInterval(checkArrivedOrders, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      controller.abort();
+    };
   }, [currentUserId, dismissedId]);
 
   const handleConfirmDelivery = async () => {

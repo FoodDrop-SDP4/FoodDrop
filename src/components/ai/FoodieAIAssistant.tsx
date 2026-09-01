@@ -44,6 +44,8 @@ interface DishSuggestion {
 
 interface ComboMeal {
   title: string;
+  restaurantId?: string;
+  restaurantName?: string;
   dishes: DishSuggestion[];
   totalPrice: number;
   comboPrice: number;
@@ -114,7 +116,7 @@ function getTimeGreeting(): { greeting: string; periodText: string; prompts: { l
 
 export default function FoodieAIAssistant() {
   const pathname = usePathname();
-  const { addToCart, openCart } = useCartStore();
+  const { addToCart, addMultipleToCart, openCart } = useCartStore();
 
   const timeContext = useMemo(() => getTimeGreeting(), []);
 
@@ -149,9 +151,14 @@ export default function FoodieAIAssistant() {
     }
   }, [messages, isOpen, isLoading]);
 
+  // Context-awareness: Detect if user is on a specific restaurant page
+  const restaurantMatch = pathname?.match(/^\/restaurants\/([^\/]+)/);
+  const currentRestaurantId = restaurantMatch ? restaurantMatch[1] : undefined;
+
   // Hide AI Assistant on specialized management portals
   const isExcludedRoute =
-    pathname?.startsWith("/restaurant") ||
+    pathname === "/restaurant" ||
+    pathname?.startsWith("/restaurant/") ||
     pathname?.startsWith("/rider") ||
     pathname?.startsWith("/checkout");
 
@@ -179,7 +186,10 @@ export default function FoodieAIAssistant() {
       const res = await fetch("/api/ai/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: textToSend }),
+        body: JSON.stringify({
+          query: textToSend,
+          restaurantId: currentRestaurantId,
+        }),
       });
 
       if (res.ok) {
@@ -242,20 +252,20 @@ export default function FoodieAIAssistant() {
     }, 2000);
   };
 
-  // 👫 3. Add Entire Combo Meal to Cart
+  // 👫 3. Add Entire Combo Meal to Cart (Atomically to the same restaurant)
   const handleAddComboToCart = (combo: ComboMeal) => {
     playAddToCartSound();
-    combo.dishes.forEach((dish) => {
-      addToCart({
-        id: dish.id,
-        name: dish.name,
-        price: dish.price,
-        imageUrl: dish.imageUrl,
-        quantity: 1,
-        restaurantId: dish.restaurantId,
-        restaurantName: dish.restaurantName,
-      });
-    });
+    const itemsToAdd = combo.dishes.map((dish) => ({
+      id: dish.id,
+      name: dish.name,
+      price: dish.price,
+      imageUrl: dish.imageUrl,
+      quantity: 1,
+      restaurantId: dish.restaurantId || combo.restaurantId || "",
+      restaurantName: dish.restaurantName || combo.restaurantName || "Restaurant",
+    }));
+
+    addMultipleToCart(itemsToAdd);
 
     triggerConfetti();
     setAddedComboId(combo.title);
@@ -383,16 +393,24 @@ export default function FoodieAIAssistant() {
                     {/* 👫 3. Smart Combo Meal Pairing Box */}
                     {msg.comboMeal && (
                       <div className="mt-3 overflow-hidden rounded-2xl border-2 border-orange-200 bg-orange-50/60 p-3.5 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-600 text-white text-[10px]">
-                              👫
-                            </span>
-                            <h4 className="font-black text-orange-950 text-xs">
-                              {msg.comboMeal.title}
-                            </h4>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5">
+                              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-600 text-white text-[10px]">
+                                👫
+                              </span>
+                              <h4 className="font-black text-orange-950 text-xs">
+                                {msg.comboMeal.title}
+                              </h4>
+                            </div>
+                            {msg.comboMeal.restaurantName && (
+                              <div className="flex items-center gap-1 mt-1 text-[10px] font-bold text-orange-800 bg-orange-200/50 px-2 py-0.5 rounded-md w-fit">
+                                <Store className="h-3 w-3 text-orange-600" />
+                                <span>{msg.comboMeal.restaurantName}</span>
+                              </div>
+                            )}
                           </div>
-                          <span className="rounded-full bg-orange-600 text-white text-[9px] font-black px-2 py-0.5">
+                          <span className="shrink-0 rounded-full bg-orange-600 text-white text-[9px] font-black px-2 py-0.5">
                             Save ৳{msg.comboMeal.savings}
                           </span>
                         </div>
