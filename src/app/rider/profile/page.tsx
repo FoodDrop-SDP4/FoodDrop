@@ -72,29 +72,42 @@ export default function RiderProfilePage() {
   };
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      router.push("/rider/register");
-      return;
-    }
+    const checkRiderAuth = () => {
+      const storedUser = localStorage.getItem("user");
+      if (!storedUser) {
+        window.location.href = "/login?redirect=/rider/profile";
+        return;
+      }
 
-    const user = JSON.parse(storedUser);
-    if (user.role !== "RIDER") {
-      router.push("/");
-      return;
-    }
-
-    setRider(user);
-    fetchHistory(user.id);
-
-    // Load claimed quests from localStorage
-    const savedQuests = localStorage.getItem(`rider_quests_${user.id}`);
-    if (savedQuests) {
       try {
-        setClaimedQuests(JSON.parse(savedQuests));
-      } catch (e) {}
-    }
-  }, [router]);
+        const user = JSON.parse(storedUser);
+        if (user.role !== "RIDER") {
+          window.location.href = "/login?redirect=/rider/profile";
+          return;
+        }
+
+        setRider(user);
+        fetchHistory(user.id);
+
+        // Load claimed quests from localStorage
+        const savedQuests = localStorage.getItem(`rider_quests_${user.id}`);
+        if (savedQuests) {
+          try {
+            setClaimedQuests(JSON.parse(savedQuests));
+          } catch (e) {}
+        }
+      } catch (err) {
+        window.location.href = "/login?redirect=/rider/profile";
+      }
+    };
+
+    checkRiderAuth();
+
+    window.addEventListener("user-state-change", checkRiderAuth);
+    return () => {
+      window.removeEventListener("user-state-change", checkRiderAuth);
+    };
+  }, []);
 
   // Claim Quest Reward
   const handleClaimQuest = (questId: string, rewardText: string) => {

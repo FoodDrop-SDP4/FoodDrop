@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
@@ -26,11 +26,13 @@ import {
   Loader2,
   KeyRound,
   Sparkles,
+  Send,
+  ShieldCheck,
 } from "lucide-react";
 import { Order, OrderStatus } from "../../types";
 import OrderReceiptModal from "../orders/OrderReceiptModal";
 import { triggerFireworks, triggerConfetti } from "../../lib/confetti";
-import { playDeliveryCompleteSound } from "../../lib/sound";
+import { playDeliveryCompleteSound, playMessageSound } from "../../lib/sound";
 
 // Dynamic import for Leaflet map component (SSR: false)
 const LiveTrackingMap = dynamic(() => import("./LiveTrackingMap"), {
@@ -48,6 +50,23 @@ const LiveTrackingMap = dynamic(() => import("./LiveTrackingMap"), {
 interface OrderTrackingViewProps {
   initialOrder: Order;
 }
+
+interface DeliveryChatMessage {
+  id: string;
+  sender: "CUSTOMER" | "RIDER";
+  text: string;
+  time: string;
+  status?: "sent" | "read";
+}
+
+const QUICK_PROMPTS = [
+  { label: "Where are you now?", icon: "📍" },
+  { label: "Please call when downstairs", icon: "📞" },
+  { label: "Leave at front door", icon: "🚪" },
+  { label: "I am waiting outside", icon: "🙋" },
+  { label: "Take your time & drive safe", icon: "🛵" },
+  { label: "Please bring extra napkins/sauce", icon: "🥢" },
+];
 
 const STAGES: { key: OrderStatus; label: string; sub: string; icon: React.ElementType }[] = [
   { key: "PENDING", label: "Order Placed", sub: "Waiting for restaurant", icon: Clock },
@@ -82,10 +101,26 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
 
   // Call & Chat Modal State
   const [activeModal, setActiveModal] = useState<"CALL" | "CHAT" | null>(null);
-  const [chatMessages, setChatMessages] = useState<string[]>([
-    "Hello! I am on the way with your food.",
+  const [chatMessages, setChatMessages] = useState<DeliveryChatMessage[]>([
+    {
+      id: "init-1",
+      sender: "RIDER",
+      text: "Hello! I am on the way with your food order. 🛵",
+      time: "Just now",
+      status: "read",
+    },
   ]);
   const [newMessage, setNewMessage] = useState("");
+  const [isRiderTyping, setIsRiderTyping] = useState(false);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (activeModal === "CHAT") {
+      setTimeout(() => {
+        chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
+  }, [chatMessages, isRiderTyping, activeModal]);
 
   // 🚀 Real-time Polling: Check backend every 3 seconds for updated order & rider info
   useEffect(() => {
@@ -214,17 +249,94 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
     }
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim()) return;
-    setChatMessages((prev) => [...prev, `You: ${newMessage.trim()}`]);
+  const generateRiderReply = (userText: string): string => {
+    const lower = userText.toLowerCase();
+    if (
+      lower.includes("where") ||
+      lower.includes("kothay") ||
+      lower.includes("location") ||
+      lower.includes("eta") ||
+      lower.includes("কত দূর")
+    ) {
+      return "I'm about 5-8 minutes away, currently near your delivery area! 🚦";
+    }
+    if (
+      lower.includes("call") ||
+      lower.includes("phone") ||
+      lower.includes("কল") ||
+      lower.includes("রিং")
+    ) {
+      return "Understood! I will call your phone right as I arrive downstairs. 📲";
+    }
+    if (
+      lower.includes("door") ||
+      lower.includes("gate") ||
+      lower.includes("leave") ||
+      lower.includes("দরজা")
+    ) {
+      return "Got it! I will place it safely at your door/gate and notify you immediately. 👍";
+    }
+    if (
+      lower.includes("wait") ||
+      lower.includes("outside") ||
+      lower.includes("downstairs") ||
+      lower.includes("আছি")
+    ) {
+      return "Awesome, pulling up in 2 minutes! See you shortly. 🛵";
+    }
+    if (
+      lower.includes("safe") ||
+      lower.includes("slow") ||
+      lower.includes("careful") ||
+      lower.includes("ধীরে")
+    ) {
+      return "Thank you so much! Driving carefully and keeping your food hot and fresh. 🙏";
+    }
+    if (
+      lower.includes("napkin") ||
+      lower.includes("sauce") ||
+      lower.includes("spoon") ||
+      lower.includes("extra")
+    ) {
+      return "I confirmed with the restaurant that condiments are included! 🥡";
+    }
+    return `Got it! Navigating safely to ${order.deliveryAddress.slice(0, 24)}... Reaching very soon! 🛵`;
+  };
+
+  const sendCustomerMessage = (textToSend: string) => {
+    const text = textToSend.trim();
+    if (!text) return;
+
+    const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const userMsg: DeliveryChatMessage = {
+      id: `usr-${Date.now()}`,
+      sender: "CUSTOMER",
+      text,
+      time: timeStr,
+      status: "read",
+    };
+
+    setChatMessages((prev) => [...prev, userMsg]);
     setNewMessage("");
+    playMessageSound();
+
+    // Trigger typing simulation
+    setIsRiderTyping(true);
+    const replyDelay = 1100 + Math.random() * 500;
+
     setTimeout(() => {
-      setChatMessages((prev) => [
-        ...prev,
-        `${order.rider?.name || "Rider"}: Got it! Reaching your location shortly.`,
-      ]);
-    }, 1200);
+      setIsRiderTyping(false);
+      const riderReplyText = generateRiderReply(text);
+      const replyMsg: DeliveryChatMessage = {
+        id: `rdr-${Date.now()}`,
+        sender: "RIDER",
+        text: riderReplyText,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        status: "read",
+      };
+      setChatMessages((prev) => [...prev, replyMsg]);
+      playMessageSound();
+    }, replyDelay);
   };
 
   // 🚀 If order is CANCELLED, render clear cancellation view
@@ -650,88 +762,218 @@ export default function OrderTrackingView({ initialOrder }: OrderTrackingViewPro
 
       </div>
 
-      {/* Simulated Call Modal */}
+      {/* 📞 Simulated Call Modal */}
       {activeModal === "CALL" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-sm rounded-3xl bg-slate-900 text-white p-8 text-center shadow-2xl space-y-6">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-white shadow-xl shadow-emerald-500/30 animate-pulse">
-              <Phone className="h-10 w-10" />
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-800 text-white p-8 text-center shadow-2xl space-y-6 animate-in zoom-in-95">
+            <div className="relative mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-emerald-500 text-white shadow-2xl shadow-emerald-500/40">
+              <div className="absolute -inset-2 rounded-full border-2 border-emerald-400/50 animate-ping" />
+              <Phone className="h-10 w-10 animate-bounce" />
             </div>
             <div>
-              <h3 className="text-xl font-black">Calling {order.rider?.name || "Rider"}...</h3>
-              <p className="text-xs text-slate-400 mt-1 font-mono">{order.rider?.phone || "+880 1744-444444"}</p>
-              <p className="text-xs text-orange-400 font-bold mt-2">
-                "Hello, I am near your delivery location!"
-              </p>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-950 px-3 py-1 text-[11px] font-black text-emerald-400 border border-emerald-800/80 mb-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                Outgoing Call Connected
+              </span>
+              <h3 className="text-xl font-black">{order.rider?.name || "Delivery Partner"}</h3>
+              <p className="text-xs text-slate-400 mt-1 font-mono tracking-wider">{order.rider?.phone || "+880 1744-444444"}</p>
+              <div className="mt-4 rounded-2xl bg-white/5 p-3.5 border border-white/10 text-xs text-orange-300 font-medium">
+                💬 "Hello! I have your food package from {order.restaurant?.name || "the restaurant"}. I am on my way to {order.deliveryAddress.slice(0, 24)}!"
+              </div>
             </div>
-            <button
-              onClick={() => setActiveModal(null)}
-              className="w-full rounded-2xl bg-rose-600 py-3.5 text-xs font-bold text-white shadow hover:bg-rose-700 transition"
-            >
-              End Call
-            </button>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setActiveModal("CHAT")}
+                className="rounded-2xl bg-white/10 py-3.5 text-xs font-bold text-white hover:bg-white/20 transition flex items-center justify-center gap-1.5"
+              >
+                <MessageSquare className="h-4 w-4" /> Switch to Chat
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                className="rounded-2xl bg-rose-600 py-3.5 text-xs font-bold text-white shadow-lg shadow-rose-600/30 hover:bg-rose-700 active:scale-95 transition"
+              >
+                End Call
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Simulated Chat Modal */}
+      {/* 💬 High-Priority Customer <-> Delivery Partner Chat Modal */}
       {activeModal === "CHAT" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white text-slate-900 shadow-2xl overflow-hidden flex flex-col h-[480px]">
-            <div className="flex items-center justify-between bg-slate-900 p-4 text-white">
+        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-h-[90vh] rounded-t-3xl sm:rounded-3xl sm:max-w-md bg-white text-slate-900 shadow-2xl overflow-hidden flex flex-col sm:h-[600px] h-[540px] border border-slate-200 animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-200">
+            
+            {/* 1. Header */}
+            <div className="flex items-center justify-between bg-slate-900 px-5 py-4 text-white shadow-md">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-600 text-white font-bold text-xs">
-                  <Bike className="h-4 w-4" />
+                <div className="relative">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 text-white font-bold text-sm shadow-md">
+                    <Bike className="h-5 w-5" />
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-900">
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-slate-900 animate-pulse" />
+                  </span>
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold">{order.rider?.name || "Rider"} Chat</h4>
-                  <p className="text-[10px] text-emerald-400">Online • On the move</p>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-black text-white">{order.rider?.name || "Delivery Partner"}</h4>
+                    <span className="rounded-md bg-orange-500/20 px-1.5 py-0.5 text-[10px] font-bold text-orange-300 border border-orange-500/30">
+                      Rider
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1 mt-0.5">
+                    <span>Online • In Transit ({etaText})</span>
+                  </p>
                 </div>
               </div>
-              <button
-                onClick={() => setActiveModal(null)}
-                className="p-1.5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white"
-              >
-                <X className="h-5 w-5" />
-              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveModal("CALL")}
+                  title="Call Rider"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 hover:bg-emerald-600 text-slate-300 hover:text-white transition active:scale-95"
+                >
+                  <Phone className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  title="Close Chat"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition active:scale-95"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
-              {chatMessages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex ${msg.startsWith("You:") ? "justify-end" : "justify-start"}`}
-                >
+            {/* 2. Mini Order Security & ETA Notice */}
+            <div className="flex items-center justify-between border-b border-orange-100 bg-orange-50/70 px-4 py-2 text-[11px] text-orange-800">
+              <div className="flex items-center gap-1.5 truncate">
+                <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-orange-600" />
+                <span className="truncate font-medium">
+                  Order #{order.id.slice(0, 8)} • {order.restaurant?.name || "Restaurant"}
+                </span>
+              </div>
+              <span className="shrink-0 font-bold text-orange-700 bg-white px-2 py-0.5 rounded-full border border-orange-200">
+                {order.orderItems?.length || 0} items
+              </span>
+            </div>
+
+            {/* 3. Messages Feed */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-slate-50/80">
+              {/* Timestamp separator */}
+              <div className="flex justify-center my-1">
+                <span className="rounded-full bg-slate-200/70 px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Live Delivery Conversation
+                </span>
+              </div>
+
+              {chatMessages.map((msg) => {
+                const isUser = msg.sender === "CUSTOMER";
+                return (
                   <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs font-medium ${
-                      msg.startsWith("You:")
-                        ? "bg-orange-600 text-white rounded-br-none"
-                        : "bg-white text-slate-800 shadow-sm border border-slate-200 rounded-bl-none"
-                    }`}
+                    key={msg.id}
+                    className={`flex items-end gap-2 ${isUser ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-150`}
                   >
-                    {msg.replace("You: ", "").replace(`${order.rider?.name || "Rider"}: `, "")}
+                    {!isUser && (
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-orange-400 shadow-xs mb-0.5">
+                        <Bike className="h-3.5 w-3.5" />
+                      </div>
+                    )}
+
+                    <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} max-w-[78%]`}>
+                      <div
+                        className={`rounded-2xl px-4 py-2.5 text-xs font-medium leading-relaxed shadow-xs ${
+                          isUser
+                            ? "bg-gradient-to-r from-orange-600 to-amber-600 text-white rounded-br-xs shadow-orange-600/15"
+                            : "bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs"
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                      <div className="flex items-center gap-1 mt-1 px-1">
+                        <span className="text-[10px] text-slate-400 font-medium">{msg.time}</span>
+                        {isUser && (
+                          <span className="text-[10px] text-orange-600 font-bold">✓✓ Read</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {isUser && (
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-700 shadow-xs mb-0.5">
+                        <User className="h-3.5 w-3.5" />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Rider Typing Indicator */}
+              {isRiderTyping && (
+                <div className="flex items-end gap-2 justify-start animate-in fade-in duration-200">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-orange-400 shadow-xs">
+                    <Bike className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-xs bg-white px-4 py-3 border border-slate-200/80 shadow-xs text-slate-500">
+                    <span className="h-2 w-2 rounded-full bg-orange-500 animate-bounce [animation-delay:-0.3s]" />
+                    <span className="h-2 w-2 rounded-full bg-orange-500 animate-bounce [animation-delay:-0.15s]" />
+                    <span className="h-2 w-2 rounded-full bg-orange-500 animate-bounce" />
+                    <span className="ml-1 text-[11px] font-medium text-slate-400">
+                      {order.rider?.name || "Rider"} is typing...
+                    </span>
                   </div>
                 </div>
-              ))}
+              )}
+
+              <div ref={chatBottomRef} />
             </div>
 
-            {/* Input */}
-            <form onSubmit={handleSendMessage} className="p-3 border-t bg-white flex gap-2">
+            {/* 4. Quick Suggestion Chips */}
+            <div className="border-t border-slate-100 bg-white px-3 pt-2.5 pb-1">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-none">
+                {QUICK_PROMPTS.map((prompt, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => sendCustomerMessage(prompt.label)}
+                    className="inline-flex items-center gap-1 shrink-0 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-700 transition hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 border border-slate-200/60 active:scale-95"
+                  >
+                    <span>{prompt.icon}</span>
+                    <span>{prompt.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 5. Input Bar */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendCustomerMessage(newMessage);
+              }}
+              className="p-3 bg-white border-t border-slate-100 flex items-center gap-2"
+            >
               <input
                 type="text"
                 placeholder={`Type a message to ${order.rider?.name || "rider"}...`}
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs outline-none focus:border-orange-500"
+                className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20"
               />
               <button
                 type="submit"
-                className="rounded-xl bg-orange-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-orange-700 transition"
+                disabled={!newMessage.trim()}
+                className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-600 text-white shadow-md shadow-orange-600/30 transition hover:bg-orange-700 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Send Message"
               >
-                Send
+                <Send className="h-4 w-4" />
               </button>
             </form>
+
           </div>
         </div>
       )}
